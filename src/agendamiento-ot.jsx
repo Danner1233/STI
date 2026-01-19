@@ -15,9 +15,11 @@ import Estadisticas from "./components/Estadisticas";
 import RegistroRapido from "./components/RegistroRapido";
 import OTsPendientes from "./components/OTsPendientes";
 import FloatingModal from "./components/FloatingModal";
+import BusquedaRapida from "./components/BusquedaRapida";
+import ZonificadorMejorado from "./components/ZonificadorMejorado";
 
 // Iconos
-import { Settings, Clock, Menu, X, Minimize2, Maximize2, Map } from "lucide-react";
+import { Settings, Clock, Menu, X, Minimize2, Maximize2, Map, Search } from "lucide-react";
 
 const AgendamientoOT = () => {
   // ========== ESTADOS ==========
@@ -74,6 +76,7 @@ const AgendamientoOT = () => {
   const [mostrarPendientes, setMostrarPendientes] = useState(false);
   const [mostrarMenu, setMostrarMenu] = useState(false); // Menú hamburguesa
   const [mostrarZonificador, setMostrarZonificador] = useState(false); // Zonificador
+  const [mostrarBusqueda, setMostrarBusqueda] = useState(false); // Búsqueda rápida
 
   const [archivoZip, setArchivoZip] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -112,6 +115,23 @@ const AgendamientoOT = () => {
   useEffect(() => {
     localStorage.setItem("zoho-config", JSON.stringify(zohoConfig));
   }, [zohoConfig]);
+
+  // Atajo de teclado para búsqueda rápida (Ctrl+K o Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setMostrarBusqueda(true);
+      }
+      // Esc para cerrar búsqueda
+      if (e.key === 'Escape' && mostrarBusqueda) {
+        setMostrarBusqueda(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mostrarBusqueda]);
 
   useEffect(() => {
     const pendientes = productividad.filter(ot => ot.estado === "Pendiente");
@@ -669,6 +689,21 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // 🔍 CALLBACK PARA OT SELECCIONADA DESDE BÚSQUEDA
+  const handleSeleccionarOT = (ot) => {
+    // Abrir Historial con la OT seleccionada visible
+    setMostrarHistorial(true);
+    // Opcional: scroll al resultado si el historial es muy largo
+    setTimeout(() => {
+      const elemento = document.getElementById(`ot-${ot.id}`);
+      if (elemento) {
+        elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        elemento.classList.add('ring-4', 'ring-blue-400');
+        setTimeout(() => elemento.classList.remove('ring-4', 'ring-blue-400'), 2000);
+      }
+    }, 300);
+  };
+
   // 🆕 CALLBACK PARA OT AGENDADA DESDE PENDIENTES
   const handleOTAgendada = (otPendiente) => {
     // Llenar formulario con datos de la OT pendiente
@@ -729,6 +764,16 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
 
               {/* Botones Desktop - Ocultos en móvil */}
               <div className="hidden lg:flex gap-2 xl:gap-3 flex-shrink-0">
+                <button
+                  onClick={() => setMostrarBusqueda(true)}
+                  className="bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm"
+                  title="Búsqueda Rápida (Ctrl+K)"
+                >
+                  <Search size={18} />
+                  <span className="hidden xl:inline">Buscar</span>
+                  <kbd className="hidden xl:inline-block ml-1 px-1.5 py-0.5 text-xs bg-gray-600 rounded">Ctrl+K</kbd>
+                </button>
+                
                 <button
                   onClick={() => setMostrarConfigZoho(!mostrarConfigZoho)}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm"
@@ -812,6 +857,18 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
           {mostrarMenu && (
             <div className="lg:hidden border-t border-gray-200 bg-gray-50">
               <div className="p-4 space-y-2">
+                <button
+                  onClick={() => {
+                    setMostrarBusqueda(true);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
+                >
+                  <Search size={20} />
+                  Búsqueda Rápida
+                  <kbd className="ml-auto px-2 py-1 text-xs bg-gray-600 rounded">Ctrl+K</kbd>
+                </button>
+                
                 <button
                   onClick={() => {
                     setMostrarConfigZoho(!mostrarConfigZoho);
@@ -1057,43 +1114,28 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
           />
         )}
 
-        {/* 🗺️ Modal Zonificador Nacional */}
+        {/* 🗺️ Modal Zonificador Nacional con Buscador */}
         {mostrarZonificador && (
           <FloatingModal
             isOpen={mostrarZonificador}
             onClose={() => setMostrarZonificador(false)}
-            title="Zonificador Nacional - Aliados por Zona"
+            title="Zonificador Nacional - Buscador de Aliados"
             icon="🗺️"
             color="blue"
             defaultWidth="max-w-6xl"
             defaultHeight="max-h-[90vh]"
           >
-            <div className="p-6">
-              <div className="mb-4 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                <p className="text-sm text-blue-800">
-                  <strong>💡 Tip:</strong> Usa este mapa para consultar qué aliado corresponde a cada zona mientras agendar OTs.
-                  Puedes hacer zoom, buscar ciudades y ver los detalles de cada zona.
-                </p>
-              </div>
-              
-              <div className="relative w-full bg-gray-100 rounded-lg overflow-hidden shadow-inner" style={{ height: '70vh' }}>
-                <iframe
-                  src="https://www.google.com/maps/d/embed?mid=1Z5qem07eDeohDofJDR1qLSnCnQcBj5g&ehbc=2E312F"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen=""
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="Zonificador Nacional"
-                ></iframe>
-              </div>
-              
-              <div className="mt-4 text-xs text-gray-500 text-center">
-                🗺️ Mapa interactivo - Click en las zonas para ver más detalles
-              </div>
-            </div>
+            <ZonificadorMejorado />
           </FloatingModal>
+        )}
+
+        {/* 🔍 Modal Búsqueda Rápida */}
+        {mostrarBusqueda && (
+          <BusquedaRapida
+            productividad={productividad}
+            onSeleccionarOT={handleSeleccionarOT}
+            onClose={() => setMostrarBusqueda(false)}
+          />
         )}
       </div>
     </div>

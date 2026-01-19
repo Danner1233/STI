@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Phone, CheckCircle, Edit2, Trash2, Clock, User } from 'lucide-react';
 
 const OTsPendientes = ({ onClose, onOTAgendada }) => {
-  // Capturar tiempo actual una vez al montar usando useState
-  // eslint-disable-next-line react-hooks/purity
   const [ahora] = useState(() => Date.now());
   
   const [pendientes, setPendientes] = useState(() => {
@@ -81,7 +79,7 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
   };
 
   const registrarIntento = (id) => {
-    // eslint-disable-next-line react-hooks/purity
+  
     const timestamp = Date.now();
     setPendientes(prev => prev.map(ot => 
       ot.id === id ? { 
