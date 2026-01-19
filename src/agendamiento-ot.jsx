@@ -13,9 +13,11 @@ import Formulario from "./components/Formulario";
 import VistaPrevia from "./components/VistaPrevia";
 import Estadisticas from "./components/Estadisticas";
 import RegistroRapido from "./components/RegistroRapido";
+import OTsPendientes from "./components/OTsPendientes";
+import FloatingModal from "./components/FloatingModal";
 
 // Iconos
-import { Settings } from "lucide-react";
+import { Settings, Clock, Menu, X, Minimize2, Maximize2, Map } from "lucide-react";
 
 const AgendamientoOT = () => {
   // ========== ESTADOS ==========
@@ -69,6 +71,9 @@ const AgendamientoOT = () => {
   const [mostrarGestionContactos, setMostrarGestionContactos] = useState(false);
   const [mostrarSelectorMultiple, setMostrarSelectorMultiple] = useState(false);
   const [mostrarConfigZoho, setMostrarConfigZoho] = useState(false);
+  const [mostrarPendientes, setMostrarPendientes] = useState(false);
+  const [mostrarMenu, setMostrarMenu] = useState(false); // Menú hamburguesa
+  const [mostrarZonificador, setMostrarZonificador] = useState(false); // Zonificador
 
   const [archivoZip, setArchivoZip] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -155,8 +160,18 @@ const AgendamientoOT = () => {
   const handleKeyDownCC = (e) => {
     if (e.key === 'Enter' && inputCC.trim()) {
       e.preventDefault();
+      
+      // Si hay sugerencias, usar la primera
       if (sugerenciasCC.length > 0) {
         agregarCC(sugerenciasCC[0]);
+      } 
+      // Si no hay sugerencias pero es un email válido, agregarlo directamente
+      else if (inputCC.includes('@')) {
+        const nuevoContacto = {
+          nombre: inputCC.split('@')[0],
+          email: inputCC.trim()
+        };
+        agregarCC(nuevoContacto);
       }
     }
   };
@@ -564,6 +579,14 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
     setRegistrado(true);
     setTimeout(() => setRegistrado(false), 2000);
 
+    // 🆕 QUITAR DE PENDIENTES SI EXISTE
+    const pendientes = JSON.parse(localStorage.getItem('ots-pendientes') || '[]');
+    const nuevosPendientes = pendientes.filter(p => p.numeroOT !== formData.numeroOT);
+    if (nuevosPendientes.length !== pendientes.length) {
+      localStorage.setItem('ots-pendientes', JSON.stringify(nuevosPendientes));
+      console.log(`✅ OT ${formData.numeroOT} quitada de pendientes automáticamente`);
+    }
+
     // Limpiar
     setFormData({
       numeroOT: "",
@@ -610,6 +633,14 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
     };
 
     setProductividad(prev => [nuevoRegistro, ...prev]);
+
+    // 🆕 QUITAR DE PENDIENTES SI EXISTE
+    const pendientes = JSON.parse(localStorage.getItem('ots-pendientes') || '[]');
+    const nuevosPendientes = pendientes.filter(p => p.numeroOT !== datosRapidos.numeroOT);
+    if (nuevosPendientes.length !== pendientes.length) {
+      localStorage.setItem('ots-pendientes', JSON.stringify(nuevosPendientes));
+      console.log(`✅ OT ${datosRapidos.numeroOT} quitada de pendientes automáticamente (Registro Rápido)`);
+    }
   };
 
   const actualizarEstadoOT = (id, nuevoEstado) => {
@@ -624,6 +655,10 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
     );
   };
 
+  const eliminarOT = (id) => {
+    setProductividad(prev => prev.filter(ot => ot.id !== id));
+  };
+
   const reutilizarCorreo = (ot) => {
     setFormData({
       ...ot,
@@ -632,6 +667,29 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
     });
     setMostrarHistorial(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // 🆕 CALLBACK PARA OT AGENDADA DESDE PENDIENTES
+  const handleOTAgendada = (otPendiente) => {
+    // Llenar formulario con datos de la OT pendiente
+    setFormData(prev => ({
+      ...prev,
+      numeroOT: otPendiente.numeroOT,
+      cliente: otPendiente.cliente,
+      ciudad: otPendiente.ciudad || '',
+      direccion: otPendiente.direccion || '',
+      contacto: otPendiente.contacto || '',
+      telefono: otPendiente.telefono || ''
+    }));
+    
+    // Cerrar modal de pendientes
+    setMostrarPendientes(false);
+    
+    // Scroll al formulario
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Mostrar mensaje
+    alert('📝 Formulario llenado con datos de la OT.\n\nCompleta los campos restantes (fecha, hora, correo destino) y envía el correo.');
   };
 
   const calcularEstadisticas = () => {
@@ -654,93 +712,276 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                🚀 Generador de Correos - Agendamiento OT
-              </h1>
-              <p className="text-gray-600">
-                Herramienta para automatizar correos de agendamiento
-              </p>
-            </div>
-            <div className="flex gap-3">
+        {/* Header Mejorado - Responsive con Menú Desplegable */}
+        <div className="bg-white rounded-lg shadow-lg mb-6 sticky top-0 z-40">
+          {/* Desktop y Mobile Header */}
+          <div className="p-4 md:p-6">
+            <div className="flex justify-between items-center">
+              {/* Logo y Título */}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl md:text-3xl font-bold text-gray-800 mb-1 truncate">
+                  🚀 Generador de Correos - Agendamiento OT
+                </h1>
+                <p className="text-xs md:text-sm text-gray-600 hidden sm:block">
+                  Herramienta para automatizar correos de agendamiento
+                </p>
+              </div>
+
+              {/* Botones Desktop - Ocultos en móvil */}
+              <div className="hidden lg:flex gap-2 xl:gap-3 flex-shrink-0">
+                <button
+                  onClick={() => setMostrarConfigZoho(!mostrarConfigZoho)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm"
+                  title="Configuración Zoho"
+                >
+                  <Settings size={18} />
+                  <span className="hidden xl:inline">Config</span>
+                </button>
+                
+                <button
+                  onClick={() => setMostrarHistorial(!mostrarHistorial)}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm"
+                  title="Historial de OTs"
+                >
+                  📜 <span className="hidden xl:inline">Historial</span>
+                </button>
+                
+                <button
+                  onClick={() => setMostrarAutocheck(!mostrarAutocheck)}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm"
+                  title="Autocheck"
+                >
+                  ✅ <span className="hidden xl:inline">Autocheck</span>
+                </button>
+                
+                <button
+                  onClick={() => setMostrarParafiscalesMensuales(!mostrarParafiscalesMensuales)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm"
+                  title="Parafiscales"
+                >
+                  📋 <span className="hidden xl:inline">Parafiscales</span>
+                </button>
+                
+                <button
+                  onClick={() => setMostrarGestionContactos(!mostrarGestionContactos)}
+                  className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm"
+                  title="Gestión de Contactos"
+                >
+                  📧 <span className="hidden xl:inline">Contactos</span>
+                </button>
+                
+                <button
+                  onClick={() => setMostrarZonificador(!mostrarZonificador)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2"
+                  title="Zonificador Nacional"
+                >
+                  <Map size={18} />
+                  <span className="hidden xl:inline">Zonas</span>
+                </button>
+                
+                <button
+                  onClick={() => setMostrarPendientes(!mostrarPendientes)}
+                  className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition shadow-lg flex items-center gap-2 text-sm"
+                  title="OTs Pendientes"
+                >
+                  <Clock size={18} />
+                  <span className="hidden xl:inline">Pendientes</span>
+                  {(() => {
+                    const count = JSON.parse(localStorage.getItem('ots-pendientes') || '[]').length;
+                    return count > 0 ? (
+                      <span className="bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-bold">
+                        {count}
+                      </span>
+                    ) : null;
+                  })()}
+                </button>
+              </div>
+
+              {/* Botón Menú Hamburguesa - Solo móvil */}
               <button
-                onClick={() => setMostrarConfigZoho(!mostrarConfigZoho)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition"
+                onClick={() => setMostrarMenu(!mostrarMenu)}
+                className="lg:hidden ml-4 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
+                aria-label="Menú"
               >
-                <Settings size={20} />
-                Config Zoho
-              </button>
-              <button
-                onClick={() => setMostrarHistorial(!mostrarHistorial)}
-                className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-              >
-                📜 Historial
-              </button>
-              <button
-                onClick={() => setMostrarAutocheck(!mostrarAutocheck)}
-                className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-              >
-                ✅ Autocheck
-              </button>
-              <button
-                onClick={() => setMostrarParafiscalesMensuales(!mostrarParafiscalesMensuales)}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-              >
-                📋 Parafiscales
-              </button>
-              <button
-                onClick={() => setMostrarGestionContactos(!mostrarGestionContactos)}
-                className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-              >
-                📧 Contactos
+                {mostrarMenu ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
           </div>
+
+          {/* Menú Desplegable Mobile */}
+          {mostrarMenu && (
+            <div className="lg:hidden border-t border-gray-200 bg-gray-50">
+              <div className="p-4 space-y-2">
+                <button
+                  onClick={() => {
+                    setMostrarConfigZoho(!mostrarConfigZoho);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
+                >
+                  <Settings size={20} />
+                  Configuración Zoho
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setMostrarHistorial(!mostrarHistorial);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
+                >
+                  📜 Historial
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setMostrarAutocheck(!mostrarAutocheck);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
+                >
+                  ✅ Autocheck
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setMostrarParafiscalesMensuales(!mostrarParafiscalesMensuales);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
+                >
+                  📋 Parafiscales
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setMostrarGestionContactos(!mostrarGestionContactos);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
+                >
+                  📧 Contactos
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setMostrarZonificador(!mostrarZonificador);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
+                >
+                  <Map size={20} />
+                  Zonificador Nacional
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setMostrarPendientes(!mostrarPendientes);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition shadow-lg"
+                >
+                  <Clock size={20} />
+                  OTs Pendientes
+                  {(() => {
+                    const count = JSON.parse(localStorage.getItem('ots-pendientes') || '[]').length;
+                    return count > 0 ? (
+                      <span className="ml-auto bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-bold">
+                        {count}
+                      </span>
+                    ) : null;
+                  })()}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* ✅ COMPONENTES */}
+        {/* ✅ COMPONENTES COMO VENTANAS FLOTANTES */}
         {mostrarHistorial && (
-          <Historial 
-            productividad={productividad}
-            onReutilizar={reutilizarCorreo}
+          <FloatingModal
+            isOpen={mostrarHistorial}
             onClose={() => setMostrarHistorial(false)}
-          />
+            title="Historial de OTs"
+            icon="📜"
+            color="cyan"
+          >
+            <Historial 
+              productividad={productividad}
+              onReutilizar={reutilizarCorreo}
+              onClose={() => setMostrarHistorial(false)}
+            />
+          </FloatingModal>
         )}
 
-        {mostrarAutocheck && <Autocheck />}
+        {mostrarAutocheck && (
+          <FloatingModal
+            isOpen={mostrarAutocheck}
+            onClose={() => setMostrarAutocheck(false)}
+            title="Autocheck de OTs"
+            icon="✅"
+            color="orange"
+            defaultWidth="max-w-6xl"
+          >
+            <Autocheck />
+          </FloatingModal>
+        )}
 
         {mostrarGestionContactos && (
-          <GestionContactos
-            contactosGuardados={contactosGuardados}
-            onAgregarNuevo={agregarNuevoContacto}
-            onActualizar={actualizarContacto}
-            onEliminar={eliminarContacto}
-            onSincronizarZoho={sincronizarContactosZoho}
+          <FloatingModal
+            isOpen={mostrarGestionContactos}
             onClose={() => setMostrarGestionContactos(false)}
-          />
+            title="Gestión de Contactos"
+            icon="📧"
+            color="green"
+          >
+            <GestionContactos
+              contactosGuardados={contactosGuardados}
+              onAgregarNuevo={agregarNuevoContacto}
+              onActualizar={actualizarContacto}
+              onEliminar={eliminarContacto}
+              onSincronizarZoho={sincronizarContactosZoho}
+              onClose={() => setMostrarGestionContactos(false)}
+            />
+          </FloatingModal>
         )}
 
         {mostrarConfigZoho && (
-          <ConfiguracionZoho
-            zohoConfig={zohoConfig}
-            onConfigChange={handleZohoConfigChange}
+          <FloatingModal
+            isOpen={mostrarConfigZoho}
             onClose={() => setMostrarConfigZoho(false)}
-          />
+            title="Configuración Zoho"
+            icon="⚙️"
+            color="indigo"
+            defaultWidth="max-w-2xl"
+          >
+            <ConfiguracionZoho
+              zohoConfig={zohoConfig}
+              onConfigChange={handleZohoConfigChange}
+              onClose={() => setMostrarConfigZoho(false)}
+            />
+          </FloatingModal>
         )}
 
         {mostrarParafiscalesMensuales && (
-          <ParafiscalesMensuales
-            parafiscalesMensuales={parafiscalesMensuales}
-            onActualizarMes={actualizarMesParafiscales}
-            onAgregarTecnico={agregarTecnicoMensual}
-            onActualizarTecnico={actualizarTecnicoMensual}
-            onEliminarTecnico={eliminarTecnicoMensual}
-            onImportarExcel={importarParafiscalesExcel}
+          <FloatingModal
+            isOpen={mostrarParafiscalesMensuales}
             onClose={() => setMostrarParafiscalesMensuales(false)}
-          />
+            title="Parafiscales Mensuales"
+            icon="📋"
+            color="purple"
+            defaultWidth="max-w-6xl"
+          >
+            <ParafiscalesMensuales
+              parafiscalesMensuales={parafiscalesMensuales}
+              onActualizarMes={actualizarMesParafiscales}
+              onAgregarTecnico={agregarTecnicoMensual}
+              onActualizarTecnico={actualizarTecnicoMensual}
+              onEliminarTecnico={eliminarTecnicoMensual}
+              onImportarExcel={importarParafiscalesExcel}
+              onClose={() => setMostrarParafiscalesMensuales(false)}
+            />
+          </FloatingModal>
         )}
 
         {/* Estadísticas */}
@@ -784,6 +1025,7 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
               productividad={productividad}
               onActualizarEstado={actualizarEstadoOT}
               onActualizarRR={actualizarRR}
+              onEliminarOT={eliminarOT}
             />
           </div>
         </div>
@@ -805,6 +1047,53 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
               setMostrarGestionContactos(true);
             }}
           />
+        )}
+
+        {/* 🆕 Modal OTs Pendientes */}
+        {mostrarPendientes && (
+          <OTsPendientes
+            onClose={() => setMostrarPendientes(false)}
+            onOTAgendada={handleOTAgendada}
+          />
+        )}
+
+        {/* 🗺️ Modal Zonificador Nacional */}
+        {mostrarZonificador && (
+          <FloatingModal
+            isOpen={mostrarZonificador}
+            onClose={() => setMostrarZonificador(false)}
+            title="Zonificador Nacional - Aliados por Zona"
+            icon="🗺️"
+            color="blue"
+            defaultWidth="max-w-6xl"
+            defaultHeight="max-h-[90vh]"
+          >
+            <div className="p-6">
+              <div className="mb-4 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                <p className="text-sm text-blue-800">
+                  <strong>💡 Tip:</strong> Usa este mapa para consultar qué aliado corresponde a cada zona mientras agendar OTs.
+                  Puedes hacer zoom, buscar ciudades y ver los detalles de cada zona.
+                </p>
+              </div>
+              
+              <div className="relative w-full bg-gray-100 rounded-lg overflow-hidden shadow-inner" style={{ height: '70vh' }}>
+                <iframe
+                  src="https://www.google.com/maps/d/embed?mid=1Z5qem07eDeohDofJDR1qLSnCnQcBj5g&ehbc=2E312F"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Zonificador Nacional"
+                ></iframe>
+              </div>
+              
+              <div className="mt-4 text-xs text-gray-500 text-center">
+                🗺️ Mapa interactivo - Click en las zonas para ver más detalles
+              </div>
+            </div>
+          </FloatingModal>
         )}
       </div>
     </div>

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Download, Clock, Calendar, Filter } from 'lucide-react';
+import { Download, Clock, Calendar, Filter, Trash2 } from 'lucide-react';
 
 const Productividad = ({ 
   productividad, 
   onActualizarEstado, 
-  onActualizarRR
+  onActualizarRR,
+  onEliminarOT
 }) => {
   
   const [filtroFecha, setFiltroFecha] = useState('todos'); // 'todos', 'hoy', 'ayer', 'semana', 'mes', 'personalizado'
@@ -519,20 +520,39 @@ const Productividad = ({
                     )}
                   </div>
                   
-                  {/* Dropdown para cambiar estado */}
-                  <select
-                    value={ot.estado}
-                    onChange={(e) => onActualizarEstado(ot.id, e.target.value)}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded border-2 cursor-pointer ${
-                      ot.estado === "Enviado" ? "bg-green-100 text-green-800 border-green-300" :
-                      ot.estado === "Pendiente" ? "bg-yellow-100 text-yellow-800 border-yellow-300" :
-                      "bg-red-100 text-red-800 border-red-300"
-                    }`}
-                  >
-                    <option value="Enviado">✓ Enviado</option>
-                    <option value="Pendiente">⏰ Pendiente</option>
-                    <option value="Cancelado">✗ Cancelado</option>
-                  </select>
+                  {/* Controles: Estado y Eliminar */}
+                  <div className="flex flex-col gap-2">
+                    {/* Dropdown para cambiar estado */}
+                    <select
+                      value={ot.estado}
+                      onChange={(e) => onActualizarEstado(ot.id, e.target.value)}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded border-2 cursor-pointer ${
+                        ot.estado === "Enviado" ? "bg-green-100 text-green-800 border-green-300" :
+                        ot.estado === "Pendiente" ? "bg-yellow-100 text-yellow-800 border-yellow-300" :
+                        "bg-red-100 text-red-800 border-red-300"
+                      }`}
+                    >
+                      <option value="Enviado">✓ Enviado</option>
+                      <option value="Pendiente">⏰ Pendiente</option>
+                      <option value="Cancelado">✗ Cancelado</option>
+                    </select>
+                    
+                    {/* Botón Eliminar */}
+                    {onEliminarOT && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`¿Eliminar OT ${ot.numeroOT}?\n\nEsta acción no se puede deshacer.`)) {
+                            onEliminarOT(ot.id);
+                          }
+                        }}
+                        className="flex items-center justify-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border-2 border-red-200 hover:border-red-300 rounded text-xs font-semibold transition"
+                        title="Eliminar OT"
+                      >
+                        <Trash2 size={14} />
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
