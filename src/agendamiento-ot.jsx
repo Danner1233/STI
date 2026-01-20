@@ -17,9 +17,10 @@ import OTsPendientes from "./components/OTsPendientes";
 import FloatingModal from "./components/FloatingModal";
 import BusquedaRapida from "./components/BusquedaRapida";
 import ZonificadorMejorado from "./components/ZonificadorMejorado";
+import GuiaEscalamiento from "./components/GuiaEscalamiento";
 
 // Iconos
-import { Settings, Clock, Menu, X, Minimize2, Maximize2, Map, Search } from "lucide-react";
+import { Settings, Clock, Menu, X, Minimize2, Maximize2, Map, Search, BookOpen } from "lucide-react";
 
 const AgendamientoOT = () => {
   // ========== ESTADOS ==========
@@ -77,6 +78,7 @@ const AgendamientoOT = () => {
   const [mostrarMenu, setMostrarMenu] = useState(false); // Menú hamburguesa
   const [mostrarZonificador, setMostrarZonificador] = useState(false); // Zonificador
   const [mostrarBusqueda, setMostrarBusqueda] = useState(false); // Búsqueda rápida
+  const [mostrarGuiaEscalamiento, setMostrarGuiaEscalamiento] = useState(false); // Guía de escalamiento
 
   const [archivoZip, setArchivoZip] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -825,6 +827,15 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
                 </button>
                 
                 <button
+                  onClick={() => setMostrarGuiaEscalamiento(!mostrarGuiaEscalamiento)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2"
+                  title="Guía de Escalamiento"
+                >
+                  <BookOpen size={18} />
+                  <span className="hidden xl:inline">Escalar</span>
+                </button>
+                
+                <button
                   onClick={() => setMostrarPendientes(!mostrarPendientes)}
                   className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition shadow-lg flex items-center gap-2 text-sm"
                   title="OTs Pendientes"
@@ -929,6 +940,17 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
                 >
                   <Map size={20} />
                   Zonificador Nacional
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setMostrarGuiaEscalamiento(!mostrarGuiaEscalamiento);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
+                >
+                  <BookOpen size={20} />
+                  Guía de Escalamiento
                 </button>
                 
                 <button
@@ -1135,6 +1157,13 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
             productividad={productividad}
             onSeleccionarOT={handleSeleccionarOT}
             onClose={() => setMostrarBusqueda(false)}
+          />
+        )}
+
+        {/* 📚 Modal Guía de Escalamiento */}
+        {mostrarGuiaEscalamiento && (
+          <GuiaEscalamiento
+            onClose={() => setMostrarGuiaEscalamiento(false)}
           />
         )}
       </div>
