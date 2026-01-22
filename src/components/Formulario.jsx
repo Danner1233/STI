@@ -1,5 +1,6 @@
-import React from 'react';
-import { Copy, Mail, FileArchive } from 'lucide-react';
+import React from "react";
+import { Copy, Mail, FileArchive } from "lucide-react";
+import { SERVICIOS_PDT } from "../constants/serviciosPDT";
 
 const Formulario = ({
   formData,
@@ -17,7 +18,7 @@ const Formulario = ({
   onCopiarCorreo,
   onEnviarCorreo,
   copied,
-  registrado
+  registrado,
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -61,37 +62,89 @@ const Formulario = ({
               <option>Site Survey</option>
             </select>
           </div>
+        </div>
 
-          {/* Consensus - DEBE MARCARSE MANUALMENTE */}
-          <div className="col-span-2 bg-yellow-50 border-2 border-yellow-400 rounded-lg p-3">
-            <label className="flex items-center gap-2 cursor-pointer">
+        {/* Servicio PDT */}
+        {/* Servicio PDT */}
+        <div className="bg-indigo-50 border-2 border-indigo-300 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-semibold text-indigo-900">
+              📋 Servicio PDT (Plan Técnico de Despliegue)
+            </label>
+
+            {/* Checkbox para activar/desactivar generación */}
+            <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1 rounded-lg border-2 border-indigo-400">
               <input
                 type="checkbox"
-                name="consensus"
-                checked={formData.consensus}
+                name="generarPDT"
+                checked={formData.generarPDT}
                 onChange={(e) => {
                   const event = {
                     target: {
-                      name: 'consensus',
-                      value: e.target.checked
-                    }
+                      name: "generarPDT",
+                      value: e.target.checked,
+                    },
                   };
                   onInputChange(event);
                 }}
-                className="w-5 h-5 text-yellow-600 rounded cursor-pointer border-2 border-yellow-600"
-                style={{ accentColor: '#ca8a04' }}
+                className="w-4 h-4 text-indigo-600 rounded"
               />
-              <span className="text-sm font-semibold text-yellow-800">
-                {formData.consensus ? '✅' : '⚠️'} Agendado en Consensus
+              <span className="text-xs font-semibold text-indigo-900">
+                {formData.generarPDT ? "✅ Generar PDT" : "⚪ No generar"}
               </span>
             </label>
-            <p className="text-xs text-yellow-700 mt-1 ml-7 font-medium">
-              {formData.consensus 
-                ? '¡Perfecto! Ya está agendado en Consensus' 
-                : '⚠️ RECORDATORIO: Debes agendar esta OT en Consensus y marcar esta casilla'
-              }
-            </p>
           </div>
+
+          <select
+            name="servicioPDT"
+            value={formData.servicioPDT}
+            onChange={onInputChange}
+            className="w-full px-3 py-2 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium"
+            disabled={!formData.generarPDT}
+          >
+            <option value="">-- Selecciona servicio para generar PDT --</option>
+            {SERVICIOS_PDT.map((servicio) => (
+              <option key={servicio} value={servicio}>
+                {servicio}
+              </option>
+            ))}
+          </select>
+
+          <p className="text-xs text-indigo-700 mt-2">
+            {formData.generarPDT
+              ? "💡 Al enviar el correo, se descargará automáticamente el PDT con los datos pre-llenados"
+              : "ℹ️ Activa el checkbox si necesitas generar el PDT"}
+          </p>
+        </div>
+
+        {/* Consensus */}
+        <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="consensus"
+              checked={formData.consensus}
+              onChange={(e) => {
+                const event = {
+                  target: {
+                    name: "consensus",
+                    value: e.target.checked,
+                  },
+                };
+                onInputChange(event);
+              }}
+              className="w-5 h-5 text-yellow-600 rounded cursor-pointer border-2 border-yellow-600"
+              style={{ accentColor: "#ca8a04" }}
+            />
+            <span className="text-sm font-semibold text-yellow-800">
+              {formData.consensus ? "✅" : "⚠️"} Agendado en Consensus
+            </span>
+          </label>
+          <p className="text-xs text-yellow-700 mt-1 ml-7 font-medium">
+            {formData.consensus
+              ? "¡Perfecto! Ya está agendado en Consensus"
+              : "⚠️ RECORDATORIO: Debes agendar esta OT en Consensus y marcar esta casilla"}
+          </p>
         </div>
 
         {/* Cliente */}
@@ -259,37 +312,40 @@ const Formulario = ({
             📋 Tabla de Parafiscales Personalizada (Opcional)
           </label>
           <p className="text-xs text-gray-600 mb-2">
-            💡 <strong>Cómo usar:</strong> Copia la tabla desde Excel y pégala aquí (Ctrl+V). El formato se mantendrá en el correo.
+            💡 <strong>Cómo usar:</strong> Copia la tabla desde Excel y pégala
+            aquí (Ctrl+V). El formato se mantendrá en el correo.
           </p>
           <div
             contentEditable={true}
             onPaste={(e) => {
               e.preventDefault();
-              const html = e.clipboardData.getData('text/html');
+              const html = e.clipboardData.getData("text/html");
               if (html) {
                 const event = {
                   target: {
-                    name: 'tablaPersonalizada',
-                    value: html
-                  }
+                    name: "tablaPersonalizada",
+                    value: html,
+                  },
                 };
                 onInputChange(event);
                 e.currentTarget.innerHTML = html;
               } else {
-                alert('⚠️ Por favor copia la tabla desde Excel (no texto plano)');
+                alert(
+                  "⚠️ Por favor copia la tabla desde Excel (no texto plano)",
+                );
               }
             }}
             onInput={(e) => {
               const event = {
                 target: {
-                  name: 'tablaPersonalizada',
-                  value: e.currentTarget.innerHTML
-                }
+                  name: "tablaPersonalizada",
+                  value: e.currentTarget.innerHTML,
+                },
               };
               onInputChange(event);
             }}
             className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white overflow-auto"
-            style={{ maxHeight: '300px' }}
+            style={{ maxHeight: "300px" }}
             dangerouslySetInnerHTML={{ __html: formData.tablaPersonalizada }}
           />
           <div className="flex gap-2 mt-2">
@@ -298,9 +354,9 @@ const Formulario = ({
               onClick={() => {
                 const event = {
                   target: {
-                    name: 'tablaPersonalizada',
-                    value: ''
-                  }
+                    name: "tablaPersonalizada",
+                    value: "",
+                  },
                 };
                 onInputChange(event);
               }}
@@ -326,7 +382,7 @@ const Formulario = ({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Enviar copia a (CC)
           </label>
-          
+
           <div className="flex gap-2 mb-2">
             <div className="relative flex-1">
               <input
@@ -337,7 +393,7 @@ const Formulario = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="Escribe nombre o email (Ej: santi)"
               />
-              
+
               {/* Sugerencias */}
               {sugerenciasCC.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
@@ -347,14 +403,18 @@ const Formulario = ({
                       onClick={() => onAgregarCC(contacto)}
                       className="px-3 py-2 hover:bg-blue-50 cursor-pointer"
                     >
-                      <div className="font-medium text-sm">{contacto.nombre}</div>
-                      <div className="text-xs text-gray-500">{contacto.email}</div>
+                      <div className="font-medium text-sm">
+                        {contacto.nombre}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {contacto.email}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            
+
             <button
               type="button"
               onClick={onMostrarSelectorMultiple}
@@ -363,7 +423,7 @@ const Formulario = ({
               📋 Seleccionar Múltiples
             </button>
           </div>
-          
+
           {/* CC agregados */}
           {formData.copiaCC.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
@@ -385,7 +445,8 @@ const Formulario = ({
             </div>
           )}
           <p className="text-xs text-gray-500 mt-1">
-            💡 Presiona Enter para agregar uno, o usa "Seleccionar Múltiples" para varios a la vez.
+            💡 Presiona Enter para agregar uno, o usa "Seleccionar Múltiples"
+            para varios a la vez.
           </p>
         </div>
 
@@ -394,12 +455,12 @@ const Formulario = ({
           <button
             onClick={onCopiarCorreo}
             disabled={
-              !formData.numeroOT || 
-              !formData.cliente || 
-              !formData.ciudad || 
-              !formData.direccion || 
-              !formData.fecha || 
-              !formData.hora || 
+              !formData.numeroOT ||
+              !formData.cliente ||
+              !formData.ciudad ||
+              !formData.direccion ||
+              !formData.fecha ||
+              !formData.hora ||
               !formData.duracion
             }
             className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition"
@@ -421,16 +482,17 @@ const Formulario = ({
               !formData.correoDestino
             }
             className={`flex-1 font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition ${
-              formData.consensus 
-                ? 'bg-green-600 hover:bg-green-700 text-white' 
-                : 'bg-yellow-500 hover:bg-yellow-600 text-black border-2 border-yellow-700 animate-pulse'
+              formData.consensus
+                ? "bg-green-600 hover:bg-green-700 text-white"
+                : "bg-yellow-500 hover:bg-yellow-600 text-black border-2 border-yellow-700 animate-pulse"
             } disabled:bg-gray-300 disabled:cursor-not-allowed disabled:animate-none`}
           >
             <Mail size={20} />
-            {formData.consensus 
-              ? (registrado ? "✓ Enviado" : "Enviar con Zoho")
-              : "⚠️ Enviar SIN Consensus"
-            }
+            {formData.consensus
+              ? registrado
+                ? "✓ Enviado"
+                : "Enviar con Zoho"
+              : "⚠️ Enviar SIN Consensus"}
           </button>
         </div>
       </div>

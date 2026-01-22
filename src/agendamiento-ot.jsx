@@ -18,9 +18,21 @@ import FloatingModal from "./components/FloatingModal";
 import BusquedaRapida from "./components/BusquedaRapida";
 import ZonificadorMejorado from "./components/ZonificadorMejorado";
 import GuiaEscalamiento from "./components/GuiaEscalamiento";
+import GestionPDT from "./components/GestionPDT";
+import { SERVICIOS_PDT } from "./constants/serviciosPDT";
+import { generarPDT, obtenerPlantillaPDT } from "./utils/generadorPDT";
 
 // Iconos
-import { Settings, Clock, Menu, X, Minimize2, Maximize2, Map, Search, BookOpen } from "lucide-react";
+import {
+  Settings,
+  Clock,
+  Menu,
+  X,
+  Map,
+  Search,
+  BookOpen,
+  FileSpreadsheet,
+} from "lucide-react";
 
 const AgendamientoOT = () => {
   // ========== ESTADOS ==========
@@ -35,37 +47,43 @@ const AgendamientoOT = () => {
     contacto: "",
     telefono: "",
     tipoServicio: "ENTREGA DE SERVICIO",
+    servicioPDT: "",
+    generarPDT: false,
     observaciones: "",
     duracion: "4-8 horas",
-    consensus: false, // ❌ Por defecto DESMARCADO - el usuario debe marcarlo manualmente
+    consensus: false,
     tablaPersonalizada: "",
     copiaCC: [],
   });
 
   const [contactosGuardados, setContactosGuardados] = useState(() => {
-    const saved = localStorage.getItem('contactos-guardados');
-    return saved ? JSON.parse(saved) : [
-      { nombre: 'Santiago Cornejo', email: 'santiago.cornejo@sti.com.co' },
-      { nombre: 'Danner Arias', email: 'danner.arias@sti.com.co' },
-    ];
+    const saved = localStorage.getItem("contactos-guardados");
+    return saved
+      ? JSON.parse(saved)
+      : [
+          { nombre: "Santiago Cornejo", email: "santiago.cornejo@sti.com.co" },
+          { nombre: "Danner Arias", email: "danner.arias@sti.com.co" },
+        ];
   });
 
-  const [inputCC, setInputCC] = useState('');
+  const [inputCC, setInputCC] = useState("");
   const [sugerenciasCC, setSugerenciasCC] = useState([]);
 
   const [parafiscalesMensuales, setParafiscalesMensuales] = useState(() => {
-    const saved = localStorage.getItem('parafiscales-mensuales');
-    return saved ? JSON.parse(saved) : {
-      mes: new Date().toISOString().slice(0, 7),
-      tecnicos: [
-        {
-          nombre: "DANIEL JARAMILLO BETANCUR",
-          cedula: "10.050.343",
-          eps: "SO S SERVICIO OCCIDENTAL DE SALUD S A",
-          arl: "COLPATRIA ARL"
-        }
-      ]
-    };
+    const saved = localStorage.getItem("parafiscales-mensuales");
+    return saved
+      ? JSON.parse(saved)
+      : {
+          mes: new Date().toISOString().slice(0, 7),
+          tecnicos: [
+            {
+              nombre: "DANIEL JARAMILLO BETANCUR",
+              cedula: "10.050.343",
+              eps: "SO S SERVICIO OCCIDENTAL DE SALUD S A",
+              arl: "COLPATRIA ARL",
+            },
+          ],
+        };
   });
 
   const [mostrarParafiscalesMensuales, setMostrarParafiscalesMensuales] = useState(false);
@@ -75,10 +93,11 @@ const AgendamientoOT = () => {
   const [mostrarSelectorMultiple, setMostrarSelectorMultiple] = useState(false);
   const [mostrarConfigZoho, setMostrarConfigZoho] = useState(false);
   const [mostrarPendientes, setMostrarPendientes] = useState(false);
-  const [mostrarMenu, setMostrarMenu] = useState(false); // Menú hamburguesa
-  const [mostrarZonificador, setMostrarZonificador] = useState(false); // Zonificador
-  const [mostrarBusqueda, setMostrarBusqueda] = useState(false); // Búsqueda rápida
-  const [mostrarGuiaEscalamiento, setMostrarGuiaEscalamiento] = useState(false); // Guía de escalamiento
+  const [mostrarMenu, setMostrarMenu] = useState(false);
+  const [mostrarZonificador, setMostrarZonificador] = useState(false);
+  const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
+  const [mostrarGuiaEscalamiento, setMostrarGuiaEscalamiento] = useState(false);
+  const [mostrarGestionPDT, setMostrarGestionPDT] = useState(false);
 
   const [archivoZip, setArchivoZip] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -86,14 +105,16 @@ const AgendamientoOT = () => {
 
   const [zohoConfig, setZohoConfig] = useState(() => {
     const saved = localStorage.getItem("zoho-config");
-    return saved ? JSON.parse(saved) : {
-      email: "",
-      password: "",
-      fromEmail: "agendamiento@sti.com.co",
-      clientId: "",
-      clientSecret: "",
-      refreshToken: "",
-    };
+    return saved
+      ? JSON.parse(saved)
+      : {
+          email: "",
+          password: "",
+          fromEmail: "agendamiento@sti.com.co",
+          clientId: "",
+          clientSecret: "",
+          refreshToken: "",
+        };
   });
 
   const [productividad, setProductividad] = useState(() => {
@@ -103,11 +124,11 @@ const AgendamientoOT = () => {
 
   // ========== EFFECTS ==========
   useEffect(() => {
-    localStorage.setItem('contactos-guardados', JSON.stringify(contactosGuardados));
+    localStorage.setItem("contactos-guardados", JSON.stringify(contactosGuardados));
   }, [contactosGuardados]);
 
   useEffect(() => {
-    localStorage.setItem('parafiscales-mensuales', JSON.stringify(parafiscalesMensuales));
+    localStorage.setItem("parafiscales-mensuales", JSON.stringify(parafiscalesMensuales));
   }, [parafiscalesMensuales]);
 
   useEffect(() => {
@@ -118,25 +139,23 @@ const AgendamientoOT = () => {
     localStorage.setItem("zoho-config", JSON.stringify(zohoConfig));
   }, [zohoConfig]);
 
-  // Atajo de teclado para búsqueda rápida (Ctrl+K o Cmd+K)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
         setMostrarBusqueda(true);
       }
-      // Esc para cerrar búsqueda
-      if (e.key === 'Escape' && mostrarBusqueda) {
+      if (e.key === "Escape" && mostrarBusqueda) {
         setMostrarBusqueda(false);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mostrarBusqueda]);
 
   useEffect(() => {
-    const pendientes = productividad.filter(ot => ot.estado === "Pendiente");
+    const pendientes = productividad.filter((ot) => ot.estado === "Pendiente");
     if (pendientes.length > 0) {
       const timer = setTimeout(() => {
         alert(`⏰ RECORDATORIO:\n\nTienes ${pendientes.length} OT(s) pendiente(s)`);
@@ -148,7 +167,7 @@ const AgendamientoOT = () => {
   // ========== HANDLERS ==========
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleInputCCChange = (e) => {
@@ -156,10 +175,11 @@ const AgendamientoOT = () => {
     setInputCC(value);
 
     if (value.length > 0) {
-      const sugerencias = contactosGuardados.filter(contacto => {
-        const match = contacto.nombre.toLowerCase().includes(value.toLowerCase()) ||
-                     contacto.email.toLowerCase().includes(value.toLowerCase());
-        const yaAgregado = formData.copiaCC.some(cc => cc.email === contacto.email);
+      const sugerencias = contactosGuardados.filter((contacto) => {
+        const match =
+          contacto.nombre.toLowerCase().includes(value.toLowerCase()) ||
+          contacto.email.toLowerCase().includes(value.toLowerCase());
+        const yaAgregado = formData.copiaCC.some((cc) => cc.email === contacto.email);
         return match && !yaAgregado;
       });
       setSugerenciasCC(sugerencias);
@@ -169,29 +189,26 @@ const AgendamientoOT = () => {
   };
 
   const agregarCC = (contacto) => {
-    if (contacto.email && !formData.copiaCC.some(cc => cc.email === contacto.email)) {
-      setFormData(prev => ({
+    if (contacto.email && !formData.copiaCC.some((cc) => cc.email === contacto.email)) {
+      setFormData((prev) => ({
         ...prev,
-        copiaCC: [...prev.copiaCC, contacto]
+        copiaCC: [...prev.copiaCC, contacto],
       }));
     }
-    setInputCC('');
+    setInputCC("");
     setSugerenciasCC([]);
   };
 
   const handleKeyDownCC = (e) => {
-    if (e.key === 'Enter' && inputCC.trim()) {
+    if (e.key === "Enter" && inputCC.trim()) {
       e.preventDefault();
-      
-      // Si hay sugerencias, usar la primera
+
       if (sugerenciasCC.length > 0) {
         agregarCC(sugerenciasCC[0]);
-      } 
-      // Si no hay sugerencias pero es un email válido, agregarlo directamente
-      else if (inputCC.includes('@')) {
+      } else if (inputCC.includes("@")) {
         const nuevoContacto = {
-          nombre: inputCC.split('@')[0],
-          email: inputCC.trim()
+          nombre: inputCC.split("@")[0],
+          email: inputCC.trim(),
         };
         agregarCC(nuevoContacto);
       }
@@ -199,20 +216,20 @@ const AgendamientoOT = () => {
   };
 
   const eliminarCC = (emailAEliminar) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      copiaCC: prev.copiaCC.filter(cc => cc.email !== emailAEliminar)
+      copiaCC: prev.copiaCC.filter((cc) => cc.email !== emailAEliminar),
     }));
   };
 
   const agregarMultiplesCC = (contactosSeleccionados) => {
     const nuevosCC = contactosSeleccionados.filter(
-      contacto => !formData.copiaCC.some(cc => cc.email === contacto.email)
+      (contacto) => !formData.copiaCC.some((cc) => cc.email === contacto.email),
     );
     if (nuevosCC.length > 0) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        copiaCC: [...prev.copiaCC, ...nuevosCC]
+        copiaCC: [...prev.copiaCC, ...nuevosCC],
       }));
     }
   };
@@ -224,43 +241,43 @@ const AgendamientoOT = () => {
 
   const handleZohoConfigChange = (e) => {
     const { name, value } = e.target;
-    setZohoConfig(prev => ({ ...prev, [name]: value }));
+    setZohoConfig((prev) => ({ ...prev, [name]: value }));
   };
 
   // ========== PARAFISCALES ==========
   const agregarTecnicoMensual = () => {
-    setParafiscalesMensuales(prev => ({
+    setParafiscalesMensuales((prev) => ({
       ...prev,
-      tecnicos: [...prev.tecnicos, { nombre: "", cedula: "", eps: "", arl: "" }]
+      tecnicos: [...prev.tecnicos, { nombre: "", cedula: "", eps: "", arl: "" }],
     }));
   };
 
   const actualizarTecnicoMensual = (index, campo, valor) => {
-    setParafiscalesMensuales(prev => ({
+    setParafiscalesMensuales((prev) => ({
       ...prev,
-      tecnicos: prev.tecnicos.map((tec, i) => 
-        i === index ? { ...tec, [campo]: valor } : tec
-      )
+      tecnicos: prev.tecnicos.map((tec, i) =>
+        i === index ? { ...tec, [campo]: valor } : tec,
+      ),
     }));
   };
 
   const eliminarTecnicoMensual = (index) => {
-    setParafiscalesMensuales(prev => ({
+    setParafiscalesMensuales((prev) => ({
       ...prev,
-      tecnicos: prev.tecnicos.filter((_, i) => i !== index)
+      tecnicos: prev.tecnicos.filter((_, i) => i !== index),
     }));
   };
 
   const actualizarMesParafiscales = (nuevoMes) => {
-    setParafiscalesMensuales(prev => ({ ...prev, mes: nuevoMes }));
+    setParafiscalesMensuales((prev) => ({ ...prev, mes: nuevoMes }));
   };
 
   const importarParafiscalesExcel = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      alert('⚠️ Por favor selecciona un archivo Excel');
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      alert("⚠️ Por favor selecciona un archivo Excel");
       return;
     }
 
@@ -268,53 +285,55 @@ const AgendamientoOT = () => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const nuevosTecnicos = jsonData.map(row => ({
-          nombre: row['Nombre'] || row['nombre'] || '',
-          cedula: row['Cédula'] || row['Cedula'] || '',
-          eps: row['EPS'] || row['eps'] || '',
-          arl: row['ARL'] || row['arl'] || ''
+        const nuevosTecnicos = jsonData.map((row) => ({
+          nombre: row["Nombre"] || row["nombre"] || "",
+          cedula: row["Cédula"] || row["Cedula"] || "",
+          eps: row["EPS"] || row["eps"] || "",
+          arl: row["ARL"] || row["arl"] || "",
         }));
 
-        setParafiscalesMensuales(prev => ({ ...prev, tecnicos: nuevosTecnicos }));
+        setParafiscalesMensuales((prev) => ({
+          ...prev,
+          tecnicos: nuevosTecnicos,
+        }));
         alert(`✅ ${nuevosTecnicos.length} técnicos importados!`);
       };
       reader.readAsArrayBuffer(file);
     } catch (err) {
-      console.error('Error al cargar Excel:', err);
-      alert('❌ Error al cargar el archivo');
+      console.error("Error al cargar Excel:", err);
+      alert("❌ Error al cargar el archivo");
     }
-    e.target.value = '';
+    e.target.value = "";
   };
 
   // ========== CONTACTOS ==========
   const agregarNuevoContacto = () => {
-    setContactosGuardados(prev => [...prev, { nombre: "", email: "" }]);
+    setContactosGuardados((prev) => [...prev, { nombre: "", email: "" }]);
   };
 
   const actualizarContacto = (index, campo, valor) => {
-    setContactosGuardados(prev => 
-      prev.map((contacto, i) => 
-        i === index ? { ...contacto, [campo]: valor } : contacto
-      )
+    setContactosGuardados((prev) =>
+      prev.map((contacto, i) =>
+        i === index ? { ...contacto, [campo]: valor } : contacto,
+      ),
     );
   };
 
   const eliminarContacto = (index) => {
-    setContactosGuardados(prev => prev.filter((_, i) => i !== index));
+    setContactosGuardados((prev) => prev.filter((_, i) => i !== index));
   };
 
   const sincronizarContactosZoho = async () => {
     if (!zohoConfig.clientId || !zohoConfig.clientSecret || !zohoConfig.refreshToken) {
-      alert('⚠️ Configura tus credenciales OAuth primero');
+      alert("⚠️ Configura tus credenciales OAuth primero");
       setMostrarConfigZoho(true);
       return;
     }
-    // Implementar sincronización...
   };
 
   // ========== GENERADORES ==========
@@ -324,8 +343,7 @@ const AgendamientoOT = () => {
 
   const generarCuerpo = () => {
     const dias = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-    const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", 
-                  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
     let fechaFormateada = "";
     if (formData.fecha) {
@@ -350,35 +368,14 @@ Duracion de la actividad: ${formData.duracion}
 └─────────────────────────────────────────────────────────────────────┘
 
 PARAFISCALES DE LOS TECNICOS:
-${parafiscalesMensuales.tecnicos.map(tec => 
-  `${String(tec.nombre || '').padEnd(35)} CC: ${String(tec.cedula || '').padEnd(15)} EPS: ${String(tec.eps || '').padEnd(20)} ARL: ${String(tec.arl || '')}`
-).join('\n')}`;
+${parafiscalesMensuales.tecnicos
+  .map((tec) => `${String(tec.nombre || "").padEnd(35)} CC: ${String(tec.cedula || "").padEnd(15)} EPS: ${String(tec.eps || "").padEnd(20)} ARL: ${String(tec.arl || "")}`)
+  .join("\n")}`;
   };
 
   const generarCuerpoHTML = () => {
-    const dias = [
-      "Domingo",
-      "Lunes",
-      "Martes",
-      "Miercoles",
-      "Jueves",
-      "Viernes",
-      "Sabado",
-    ];
-    const meses = [
-      "enero",
-      "febrero",
-      "marzo",
-      "abril",
-      "mayo",
-      "junio",
-      "julio",
-      "agosto",
-      "septiembre",
-      "octubre",
-      "noviembre",
-      "diciembre",
-    ];
+    const dias = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+    const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
     let fechaFormateada = "";
     if (formData.fecha) {
@@ -424,10 +421,9 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
         
         <p>Consideramos oportuno recordarle que para que esta obra pueda completarse es necesario solicitar acompañamiento por parte del personal de mantenimiento de las instalaciones. De la misma forma, quisieramos pec celular de la persona de contacto en sitio. Esto nos sera muy util para estar en contacto con el.</p>
         
-        ${formData.tablaPersonalizada ? 
-          formData.tablaPersonalizada
-        : 
-          `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+        ${formData.tablaPersonalizada
+          ? formData.tablaPersonalizada
+          : `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
           <thead>
             <tr style="background-color: #e30613; color: white;">
               <th>Nombre</th>
@@ -437,14 +433,16 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
             </tr>
           </thead>
           <tbody>
-            ${parafiscalesMensuales.tecnicos.map(tec => `
+            ${parafiscalesMensuales.tecnicos
+              .map((tec) => `
               <tr>
                 <td>${tec.nombre}</td>
                 <td>${tec.cedula}</td>
                 <td>${tec.eps}</td>
                 <td>${tec.arl}</td>
               </tr>
-            `).join('')}
+            `)
+              .join("")}
           </tbody>
         </table>`
         }
@@ -480,62 +478,57 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
   // ========== ACCIONES ==========
   const copiarCorreo = () => {
     const camposFaltantes = [];
-    if (!formData.numeroOT) camposFaltantes.push('Número OT');
-    if (!formData.cliente) camposFaltantes.push('Cliente');
-    
+    if (!formData.numeroOT) camposFaltantes.push("Número OT");
+    if (!formData.cliente) camposFaltantes.push("Cliente");
+
     if (camposFaltantes.length > 0) {
-      alert(`⚠️ Completa: ${camposFaltantes.join(', ')}`);
+      alert(`⚠️ Completa: ${camposFaltantes.join(", ")}`);
       return;
     }
 
     const asunto = generarAsunto();
     const cuerpo = generarCuerpo();
-    navigator.clipboard.writeText(`ASUNTO:\n${asunto}\n\n${cuerpo}`).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard
+      .writeText(`ASUNTO:\n${asunto}\n\n${cuerpo}`)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
   };
 
   const enviarCorreoZoho = async () => {
-    // ⚠️ VALIDACIÓN CRÍTICA DE CONSENSUS
     if (!formData.consensus) {
       const confirmacion = window.confirm(
-        '⚠️⚠️⚠️ ATENCIÓN URGENTE ⚠️⚠️⚠️\n\n' +
-        '🚨 NO HAS MARCADO QUE AGENDASTE EN CONSENSUS 🚨\n\n' +
-        '❌ El checkbox de "Agendado en Consensus" está DESMARCADO\n\n' +
-        '¿Ya agendaste esta OT en la plataforma de Consensus?\n\n' +
-        '• SI ya la agendaste → Click "Cancelar", marca el checkbox y envía de nuevo\n' +
-        '• NO la has agendado → Click "Cancelar" y NO ENVÍES ESTE CORREO hasta agendar\n\n' +
-        '⚠️ ¿Estás ABSOLUTAMENTE SEGURO de que quieres enviar sin marcar Consensus?'
+        "⚠️⚠️⚠️ ATENCIÓN URGENTE ⚠️⚠️⚠️\n\n" +
+          "🚨 NO HAS MARCADO QUE AGENDASTE EN CONSENSUS 🚨\n\n" +
+          '❌ El checkbox de "Agendado en Consensus" está DESMARCADO\n\n' +
+          "¿Ya agendaste esta OT en la plataforma de Consensus?\n\n" +
+          '• SI ya la agendaste → Click "Cancelar", marca el checkbox y envía de nuevo\n' +
+          '• NO la has agendado → Click "Cancelar" y NO ENVÍES ESTE CORREO hasta agendar\n\n' +
+          "⚠️ ¿Estás ABSOLUTAMENTE SEGURO de que quieres enviar sin marcar Consensus?",
       );
 
       if (!confirmacion) {
-        alert('✅ Correo NO enviado.\n\n📋 Por favor:\n1. Agenda la OT en Consensus\n2. Marca el checkbox\n3. Intenta enviar de nuevo');
+        alert("✅ Correo NO enviado.\n\n📋 Por favor:\n1. Agenda la OT en Consensus\n2. Marca el checkbox\n3. Intenta enviar de nuevo");
         return;
       }
 
-      // Segunda confirmación si el usuario insiste
       const segundaConfirmacion = window.confirm(
-        '🚨 ÚLTIMA ADVERTENCIA 🚨\n\n' +
-        'Estás a punto de enviar un correo SIN agendar en Consensus.\n\n' +
-        'Esto puede causar problemas graves:\n' +
-        '• Descoordinación con el equipo\n' +
-        '• Pérdida de seguimiento\n' +
-        '• Incumplimiento de procesos\n\n' +
-        '¿REALMENTE quieres continuar sin Consensus?'
+        "🚨 ÚLTIMA ADVERTENCIA 🚨\n\n" +
+          "Estás a punto de enviar un correo SIN agendar en Consensus.\n\n" +
+          "Esto puede causar problemas graves:\n" +
+          "• Descoordinación con el equipo\n" +
+          "• Pérdida de seguimiento\n" +
+          "• Incumplimiento de procesos\n\n" +
+          "¿REALMENTE quieres continuar sin Consensus?",
       );
 
       if (!segundaConfirmacion) {
-        alert('✅ Correo NO enviado.\n\n¡Gracias por verificar! Agenda en Consensus primero.');
+        alert("✅ Correo NO enviado.\n\n¡Gracias por verificar! Agenda en Consensus primero.");
         return;
       }
 
-      // Tercera y última advertencia
-      alert(
-        '⚠️ ENVIANDO SIN CONSENSUS ⚠️\n\n' +
-        'El correo se enviará pero quedará registrado que NO fue agendado en Consensus.\n\n' +
-        'Recuerda agendarlo después para evitar problemas.'
-      );
+      alert("⚠️ ENVIANDO SIN CONSENSUS ⚠️\n\n" + "El correo se enviará pero quedará registrado que NO fue agendado en Consensus.\n\n" + "Recuerda agendarlo después para evitar problemas.");
     }
 
     if (!zohoConfig.email || !zohoConfig.password) {
@@ -543,12 +536,12 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
       setMostrarConfigZoho(true);
       return;
     }
-    
+
     try {
       const emailData = {
         fromAddress: zohoConfig.fromEmail || zohoConfig.email,
         toAddress: formData.correoDestino,
-        cc: formData.copiaCC.map(c => c.email).join(', '),
+        cc: formData.copiaCC.map((c) => c.email).join(", "),
         subject: generarAsunto(),
         content: generarCuerpoHTML(),
       };
@@ -556,10 +549,12 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
       if (archivoZip) {
         const reader = new FileReader();
         reader.onload = async (e) => {
-          emailData.attachments = [{
-            attachmentName: archivoZip.name,
-            content: e.target.result.split(",")[1],
-          }];
+          emailData.attachments = [
+            {
+              attachmentName: archivoZip.name,
+              content: e.target.result.split(",")[1],
+            },
+          ];
           await enviarCorreoConBackend(emailData);
         };
         reader.readAsDataURL(archivoZip);
@@ -567,7 +562,7 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
         await enviarCorreoConBackend(emailData);
       }
     } catch (err) {
-      console.error('Error al enviar correo:', err);
+      console.error("Error al enviar correo:", err);
       alert("Error al enviar el correo");
     }
   };
@@ -588,7 +583,7 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
     }
   };
 
-  const registrarEnvio = () => {
+  const registrarEnvio = async () => {
     const nuevo = {
       id: Date.now(),
       ...formData,
@@ -597,19 +592,56 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
       rr: "",
     };
 
-    setProductividad(prev => [nuevo, ...prev]);
+    setProductividad((prev) => [nuevo, ...prev]);
     setRegistrado(true);
     setTimeout(() => setRegistrado(false), 2000);
 
-    // 🆕 QUITAR DE PENDIENTES SI EXISTE
-    const pendientes = JSON.parse(localStorage.getItem('ots-pendientes') || '[]');
-    const nuevosPendientes = pendientes.filter(p => p.numeroOT !== formData.numeroOT);
+    // Quitar de pendientes si existe
+    const pendientes = JSON.parse(localStorage.getItem("ots-pendientes") || "[]");
+    const nuevosPendientes = pendientes.filter((p) => p.numeroOT !== formData.numeroOT);
     if (nuevosPendientes.length !== pendientes.length) {
-      localStorage.setItem('ots-pendientes', JSON.stringify(nuevosPendientes));
+      localStorage.setItem("ots-pendientes", JSON.stringify(nuevosPendientes));
       console.log(`✅ OT ${formData.numeroOT} quitada de pendientes automáticamente`);
     }
 
-    // Limpiar
+    // 📋 GENERAR PDT SI ESTÁ ACTIVADO
+    if (formData.generarPDT && formData.servicioPDT) {
+      try {
+        const plantilla = await obtenerPlantillaPDT(formData.servicioPDT);
+
+        if (!plantilla) {
+          alert(`⚠️ No hay plantilla configurada para: ${formData.servicioPDT}\n\nPor favor, sube la plantilla en Gestión de PDTs`);
+        } else if (!plantilla.base64) {
+          alert("⚠️ La plantilla existe pero no tiene el archivo. Intenta subirla de nuevo.");
+        } else {
+          const datosOT = {
+            numeroOT: formData.numeroOT,
+            cliente: formData.cliente,
+            fecha: new Date().toLocaleDateString("es-CO"),
+            ciudad: formData.ciudad,
+            direccion: formData.direccion,
+            servicio: formData.servicioPDT,
+          };
+
+          const resultado = await generarPDT(datosOT, plantilla.base64);
+
+          if (resultado.success) {
+            console.log(`✅ PDT generado: ${resultado.nombreArchivo}`);
+            setTimeout(() => {
+              alert(`✅ PDT descargado: ${resultado.nombreArchivo}`);
+            }, 500);
+          } else {
+            console.error("Error generando PDT:", resultado.error);
+            alert(`⚠️ Error al generar PDT: ${resultado.error}`);
+          }
+        }
+      } catch (error) {
+        console.error("Error en proceso PDT:", error);
+        alert(`❌ Error inesperado: ${error.message}`);
+      }
+    }
+
+    // Limpiar formulario
     setFormData({
       numeroOT: "",
       cliente: "",
@@ -621,16 +653,18 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
       contacto: "",
       telefono: "",
       tipoServicio: "ENTREGA DE SERVICIO",
+      servicioPDT: "",
+      generarPDT: false,
       observaciones: "",
       duracion: "4-8 horas",
-      consensus: false, // ❌ Por defecto DESMARCADO
+      consensus: false,
       tablaPersonalizada: "",
       copiaCC: [],
     });
     setArchivoZip(null);
   };
 
-  // ========== REGISTRO RÁPIDO (sin envío de correo) ==========
+  // ========== REGISTRO RÁPIDO ==========
   const registrarRapido = (datosRapidos) => {
     const nuevoRegistro = {
       id: Date.now(),
@@ -651,82 +685,67 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
       tablaPersonalizada: "",
       copiaCC: [],
       fechaEnvio: new Date().toISOString(),
-      estado: "Enviado", // "Enviado" para que aparezca en completadas
+      estado: "Enviado",
     };
 
-    setProductividad(prev => [nuevoRegistro, ...prev]);
+    setProductividad((prev) => [nuevoRegistro, ...prev]);
 
-    // 🆕 QUITAR DE PENDIENTES SI EXISTE
-    const pendientes = JSON.parse(localStorage.getItem('ots-pendientes') || '[]');
-    const nuevosPendientes = pendientes.filter(p => p.numeroOT !== datosRapidos.numeroOT);
+    const pendientes = JSON.parse(localStorage.getItem("ots-pendientes") || "[]");
+    const nuevosPendientes = pendientes.filter((p) => p.numeroOT !== datosRapidos.numeroOT);
     if (nuevosPendientes.length !== pendientes.length) {
-      localStorage.setItem('ots-pendientes', JSON.stringify(nuevosPendientes));
+      localStorage.setItem("ots-pendientes", JSON.stringify(nuevosPendientes));
       console.log(`✅ OT ${datosRapidos.numeroOT} quitada de pendientes automáticamente (Registro Rápido)`);
     }
   };
 
   const actualizarEstadoOT = (id, nuevoEstado) => {
-    setProductividad(prev => 
-      prev.map(ot => ot.id === id ? { ...ot, estado: nuevoEstado } : ot)
-    );
+    setProductividad((prev) => prev.map((ot) => (ot.id === id ? { ...ot, estado: nuevoEstado } : ot)));
   };
 
   const actualizarRR = (id, nuevoRR) => {
-    setProductividad(prev => 
-      prev.map(ot => ot.id === id ? { ...ot, rr: nuevoRR } : ot)
-    );
+    setProductividad((prev) => prev.map((ot) => (ot.id === id ? { ...ot, rr: nuevoRR } : ot)));
   };
 
   const eliminarOT = (id) => {
-    setProductividad(prev => prev.filter(ot => ot.id !== id));
+    setProductividad((prev) => prev.filter((ot) => ot.id !== id));
   };
 
   const reutilizarCorreo = (ot) => {
     setFormData({
       ...ot,
-      consensus: ot.consensus || false, // Mantener el valor del historial o false
+      consensus: ot.consensus || false,
       copiaCC: ot.copiaCC || [],
     });
     setMostrarHistorial(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // 🔍 CALLBACK PARA OT SELECCIONADA DESDE BÚSQUEDA
   const handleSeleccionarOT = (ot) => {
-    // Abrir Historial con la OT seleccionada visible
     setMostrarHistorial(true);
-    // Opcional: scroll al resultado si el historial es muy largo
     setTimeout(() => {
       const elemento = document.getElementById(`ot-${ot.id}`);
       if (elemento) {
-        elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        elemento.classList.add('ring-4', 'ring-blue-400');
-        setTimeout(() => elemento.classList.remove('ring-4', 'ring-blue-400'), 2000);
+        elemento.scrollIntoView({ behavior: "smooth", block: "center" });
+        elemento.classList.add("ring-4", "ring-blue-400");
+        setTimeout(() => elemento.classList.remove("ring-4", "ring-blue-400"), 2000);
       }
     }, 300);
   };
 
-  // 🆕 CALLBACK PARA OT AGENDADA DESDE PENDIENTES
   const handleOTAgendada = (otPendiente) => {
-    // Llenar formulario con datos de la OT pendiente
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       numeroOT: otPendiente.numeroOT,
       cliente: otPendiente.cliente,
-      ciudad: otPendiente.ciudad || '',
-      direccion: otPendiente.direccion || '',
-      contacto: otPendiente.contacto || '',
-      telefono: otPendiente.telefono || ''
+      ciudad: otPendiente.ciudad || "",
+      direccion: otPendiente.direccion || "",
+      contacto: otPendiente.contacto || "",
+      telefono: otPendiente.telefono || "",
     }));
-    
-    // Cerrar modal de pendientes
+
     setMostrarPendientes(false);
-    
-    // Scroll al formulario
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    // Mostrar mensaje
-    alert('📝 Formulario llenado con datos de la OT.\n\nCompleta los campos restantes (fecha, hora, correo destino) y envía el correo.');
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    alert("📝 Formulario llenado con datos de la OT.\n\nCompleta los campos restantes (fecha, hora, correo destino) y envía el correo.");
   };
 
   const calcularEstadisticas = () => {
@@ -736,9 +755,9 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
     return {
-      hoyCount: productividad.filter(ot => new Date(ot.fechaEnvio).toDateString() === hoy).length,
-      semanaCount: productividad.filter(ot => new Date(ot.fechaEnvio) >= inicioSemana).length,
-      mesCount: productividad.filter(ot => new Date(ot.fechaEnvio) >= inicioMes).length,
+      hoyCount: productividad.filter((ot) => new Date(ot.fechaEnvio).toDateString() === hoy).length,
+      semanaCount: productividad.filter((ot) => new Date(ot.fechaEnvio) >= inicioSemana).length,
+      mesCount: productividad.filter((ot) => new Date(ot.fechaEnvio) >= inicioMes).length,
     };
   };
 
@@ -748,227 +767,130 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-7xl mx-auto">
-        
-        {/* Header Mejorado - Responsive con Menú Desplegable */}
+        {/* Header */}
         <div className="bg-white rounded-lg shadow-lg mb-6 sticky top-0 z-40">
-          {/* Desktop y Mobile Header */}
-          <div className="p-4 md:p-6">
+          <div className="p-6 md:p-8">
             <div className="flex justify-between items-center">
-              {/* Logo y Título */}
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl md:text-3xl font-bold text-gray-800 mb-1 truncate">
                   🚀 Generador de Correos - Agendamiento OT
                 </h1>
-                <p className="text-xs md:text-sm text-gray-600 hidden sm:block">
-                  Herramienta para automatizar correos de agendamiento
-                </p>
+                <p className="text-xs md:text-sm text-gray-600 hidden sm:block">Herramienta para automatizar correos de agendamiento</p>
               </div>
 
-              {/* Botones Desktop - Ocultos en móvil */}
+              {/* Botones Desktop */}
               <div className="hidden lg:flex gap-2 xl:gap-3 flex-shrink-0">
-                <button
-                  onClick={() => setMostrarBusqueda(true)}
-                  className="bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm"
-                  title="Búsqueda Rápida (Ctrl+K)"
-                >
+                <button onClick={() => setMostrarBusqueda(true)} className="bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm" title="Búsqueda Rápida (Ctrl+K)">
                   <Search size={18} />
                   <span className="hidden xl:inline">Buscar</span>
                   <kbd className="hidden xl:inline-block ml-1 px-1.5 py-0.5 text-xs bg-gray-600 rounded">Ctrl+K</kbd>
                 </button>
-                
-                <button
-                  onClick={() => setMostrarConfigZoho(!mostrarConfigZoho)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm"
-                  title="Configuración Zoho"
-                >
+
+                <button onClick={() => setMostrarConfigZoho(!mostrarConfigZoho)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm" title="Configuración Zoho">
                   <Settings size={18} />
                   <span className="hidden xl:inline">Config</span>
                 </button>
-                
-                <button
-                  onClick={() => setMostrarHistorial(!mostrarHistorial)}
-                  className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm"
-                  title="Historial de OTs"
-                >
+
+                <button onClick={() => setMostrarGestionPDT(!mostrarGestionPDT)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm" title="Gestión de PDTs">
+                  <FileSpreadsheet size={18} />
+                  <span className="hidden xl:inline">PDTs</span>
+                </button>
+
+                <button onClick={() => setMostrarHistorial(!mostrarHistorial)} className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm" title="Historial de OTs">
                   📜 <span className="hidden xl:inline">Historial</span>
                 </button>
-                
-                <button
-                  onClick={() => setMostrarAutocheck(!mostrarAutocheck)}
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm"
-                  title="Autocheck"
-                >
+
+                <button onClick={() => setMostrarAutocheck(!mostrarAutocheck)} className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm" title="Autocheck">
                   ✅ <span className="hidden xl:inline">Autocheck</span>
                 </button>
-                
-                <button
-                  onClick={() => setMostrarParafiscalesMensuales(!mostrarParafiscalesMensuales)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm"
-                  title="Parafiscales"
-                >
+
+                <button onClick={() => setMostrarParafiscalesMensuales(!mostrarParafiscalesMensuales)} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm" title="Parafiscales">
                   📋 <span className="hidden xl:inline">Parafiscales</span>
                 </button>
-                
-                <button
-                  onClick={() => setMostrarGestionContactos(!mostrarGestionContactos)}
-                  className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm"
-                  title="Gestión de Contactos"
-                >
+
+                <button onClick={() => setMostrarGestionContactos(!mostrarGestionContactos)} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm" title="Gestión de Contactos">
                   📧 <span className="hidden xl:inline">Contactos</span>
                 </button>
-                
-                <button
-                  onClick={() => setMostrarZonificador(!mostrarZonificador)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2"
-                  title="Zonificador Nacional"
-                >
+
+                <button onClick={() => setMostrarZonificador(!mostrarZonificador)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2" title="Zonificador Nacional">
                   <Map size={18} />
                   <span className="hidden xl:inline">Zonas</span>
                 </button>
-                
-                <button
-                  onClick={() => setMostrarGuiaEscalamiento(!mostrarGuiaEscalamiento)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2"
-                  title="Guía de Escalamiento"
-                >
+
+                <button onClick={() => setMostrarGuiaEscalamiento(!mostrarGuiaEscalamiento)} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2" title="Guía de Escalamiento">
                   <BookOpen size={18} />
                   <span className="hidden xl:inline">Escalar</span>
                 </button>
-                
-                <button
-                  onClick={() => setMostrarPendientes(!mostrarPendientes)}
-                  className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition shadow-lg flex items-center gap-2 text-sm"
-                  title="OTs Pendientes"
-                >
+
+                <button onClick={() => setMostrarPendientes(!mostrarPendientes)} className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition shadow-lg flex items-center gap-2 text-sm" title="OTs Pendientes">
                   <Clock size={18} />
                   <span className="hidden xl:inline">Pendientes</span>
                   {(() => {
-                    const count = JSON.parse(localStorage.getItem('ots-pendientes') || '[]').length;
-                    return count > 0 ? (
-                      <span className="bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-bold">
-                        {count}
-                      </span>
-                    ) : null;
+                    const count = JSON.parse(localStorage.getItem("ots-pendientes") || "[]").length;
+                    return count > 0 ? <span className="bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-bold">{count}</span> : null;
                   })()}
                 </button>
               </div>
 
-              {/* Botón Menú Hamburguesa - Solo móvil */}
-              <button
-                onClick={() => setMostrarMenu(!mostrarMenu)}
-                className="lg:hidden ml-4 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
-                aria-label="Menú"
-              >
+              {/* Botón Menú Móvil */}
+              <button onClick={() => setMostrarMenu(!mostrarMenu)} className="lg:hidden ml-4 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition" aria-label="Menú">
                 {mostrarMenu ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
           </div>
 
-          {/* Menú Desplegable Mobile */}
+          {/* Menú Móvil */}
           {mostrarMenu && (
             <div className="lg:hidden border-t border-gray-200 bg-gray-50">
               <div className="p-4 space-y-2">
-                <button
-                  onClick={() => {
-                    setMostrarBusqueda(true);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
-                >
+                <button onClick={() => { setMostrarBusqueda(true); setMostrarMenu(false); }} className="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
                   <Search size={20} />
                   Búsqueda Rápida
                   <kbd className="ml-auto px-2 py-1 text-xs bg-gray-600 rounded">Ctrl+K</kbd>
                 </button>
-                
-                <button
-                  onClick={() => {
-                    setMostrarConfigZoho(!mostrarConfigZoho);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
-                >
+
+                <button onClick={() => { setMostrarConfigZoho(!mostrarConfigZoho); setMostrarMenu(false); }} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
                   <Settings size={20} />
                   Configuración Zoho
                 </button>
-                
-                <button
-                  onClick={() => {
-                    setMostrarHistorial(!mostrarHistorial);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
-                >
+
+                <button onClick={() => { setMostrarGestionPDT(!mostrarGestionPDT); setMostrarMenu(false); }} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+                  <FileSpreadsheet size={20} />
+                  Gestión de PDTs
+                </button>
+
+                <button onClick={() => { setMostrarHistorial(!mostrarHistorial); setMostrarMenu(false); }} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
                   📜 Historial
                 </button>
-                
-                <button
-                  onClick={() => {
-                    setMostrarAutocheck(!mostrarAutocheck);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
-                >
+
+                <button onClick={() => { setMostrarAutocheck(!mostrarAutocheck); setMostrarMenu(false); }} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
                   ✅ Autocheck
                 </button>
-                
-                <button
-                  onClick={() => {
-                    setMostrarParafiscalesMensuales(!mostrarParafiscalesMensuales);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
-                >
+
+                <button onClick={() => { setMostrarParafiscalesMensuales(!mostrarParafiscalesMensuales); setMostrarMenu(false); }} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
                   📋 Parafiscales
                 </button>
-                
-                <button
-                  onClick={() => {
-                    setMostrarGestionContactos(!mostrarGestionContactos);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
-                >
+
+                <button onClick={() => { setMostrarGestionContactos(!mostrarGestionContactos); setMostrarMenu(false); }} className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
                   📧 Contactos
                 </button>
-                
-                <button
-                  onClick={() => {
-                    setMostrarZonificador(!mostrarZonificador);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
-                >
+
+                <button onClick={() => { setMostrarZonificador(!mostrarZonificador); setMostrarMenu(false); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
                   <Map size={20} />
                   Zonificador Nacional
                 </button>
-                
-                <button
-                  onClick={() => {
-                    setMostrarGuiaEscalamiento(!mostrarGuiaEscalamiento);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition"
-                >
+
+                <button onClick={() => { setMostrarGuiaEscalamiento(!mostrarGuiaEscalamiento); setMostrarMenu(false); }} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
                   <BookOpen size={20} />
                   Guía de Escalamiento
                 </button>
-                
-                <button
-                  onClick={() => {
-                    setMostrarPendientes(!mostrarPendientes);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition shadow-lg"
-                >
+
+                <button onClick={() => { setMostrarPendientes(!mostrarPendientes); setMostrarMenu(false); }} className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition shadow-lg">
                   <Clock size={20} />
                   OTs Pendientes
                   {(() => {
-                    const count = JSON.parse(localStorage.getItem('ots-pendientes') || '[]').length;
-                    return count > 0 ? (
-                      <span className="ml-auto bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-bold">
-                        {count}
-                      </span>
-                    ) : null;
+                    const count = JSON.parse(localStorage.getItem("ots-pendientes") || "[]").length;
+                    return count > 0 ? <span className="ml-auto bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-bold">{count}</span> : null;
                   })()}
                 </button>
               </div>
@@ -976,101 +898,41 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
           )}
         </div>
 
-        {/* ✅ COMPONENTES COMO VENTANAS FLOTANTES */}
+        {/* Modales */}
         {mostrarHistorial && (
-          <FloatingModal
-            isOpen={mostrarHistorial}
-            onClose={() => setMostrarHistorial(false)}
-            title="Historial de OTs"
-            icon="📜"
-            color="cyan"
-          >
-            <Historial 
-              productividad={productividad}
-              onReutilizar={reutilizarCorreo}
-              onClose={() => setMostrarHistorial(false)}
-            />
+          <FloatingModal isOpen={mostrarHistorial} onClose={() => setMostrarHistorial(false)} title="Historial de OTs" icon="📜" color="cyan">
+            <Historial productividad={productividad} onReutilizar={reutilizarCorreo} onClose={() => setMostrarHistorial(false)} />
           </FloatingModal>
         )}
 
         {mostrarAutocheck && (
-          <FloatingModal
-            isOpen={mostrarAutocheck}
-            onClose={() => setMostrarAutocheck(false)}
-            title="Autocheck de OTs"
-            icon="✅"
-            color="orange"
-            defaultWidth="max-w-6xl"
-          >
+          <FloatingModal isOpen={mostrarAutocheck} onClose={() => setMostrarAutocheck(false)} title="Autocheck de OTs" icon="✅" color="orange" defaultWidth="max-w-6xl">
             <Autocheck />
           </FloatingModal>
         )}
 
         {mostrarGestionContactos && (
-          <FloatingModal
-            isOpen={mostrarGestionContactos}
-            onClose={() => setMostrarGestionContactos(false)}
-            title="Gestión de Contactos"
-            icon="📧"
-            color="green"
-          >
-            <GestionContactos
-              contactosGuardados={contactosGuardados}
-              onAgregarNuevo={agregarNuevoContacto}
-              onActualizar={actualizarContacto}
-              onEliminar={eliminarContacto}
-              onSincronizarZoho={sincronizarContactosZoho}
-              onClose={() => setMostrarGestionContactos(false)}
-            />
+          <FloatingModal isOpen={mostrarGestionContactos} onClose={() => setMostrarGestionContactos(false)} title="Gestión de Contactos" icon="📧" color="green">
+            <GestionContactos contactosGuardados={contactosGuardados} onAgregarNuevo={agregarNuevoContacto} onActualizar={actualizarContacto} onEliminar={eliminarContacto} onSincronizarZoho={sincronizarContactosZoho} onClose={() => setMostrarGestionContactos(false)} />
           </FloatingModal>
         )}
 
         {mostrarConfigZoho && (
-          <FloatingModal
-            isOpen={mostrarConfigZoho}
-            onClose={() => setMostrarConfigZoho(false)}
-            title="Configuración Zoho"
-            icon="⚙️"
-            color="indigo"
-            defaultWidth="max-w-2xl"
-          >
-            <ConfiguracionZoho
-              zohoConfig={zohoConfig}
-              onConfigChange={handleZohoConfigChange}
-              onClose={() => setMostrarConfigZoho(false)}
-            />
+          <FloatingModal isOpen={mostrarConfigZoho} onClose={() => setMostrarConfigZoho(false)} title="Configuración Zoho" icon="⚙️" color="indigo" defaultWidth="max-w-2xl">
+            <ConfiguracionZoho zohoConfig={zohoConfig} onConfigChange={handleZohoConfigChange} onClose={() => setMostrarConfigZoho(false)} />
           </FloatingModal>
         )}
 
         {mostrarParafiscalesMensuales && (
-          <FloatingModal
-            isOpen={mostrarParafiscalesMensuales}
-            onClose={() => setMostrarParafiscalesMensuales(false)}
-            title="Parafiscales Mensuales"
-            icon="📋"
-            color="purple"
-            defaultWidth="max-w-6xl"
-          >
-            <ParafiscalesMensuales
-              parafiscalesMensuales={parafiscalesMensuales}
-              onActualizarMes={actualizarMesParafiscales}
-              onAgregarTecnico={agregarTecnicoMensual}
-              onActualizarTecnico={actualizarTecnicoMensual}
-              onEliminarTecnico={eliminarTecnicoMensual}
-              onImportarExcel={importarParafiscalesExcel}
-              onClose={() => setMostrarParafiscalesMensuales(false)}
-            />
+          <FloatingModal isOpen={mostrarParafiscalesMensuales} onClose={() => setMostrarParafiscalesMensuales(false)} title="Parafiscales Mensuales" icon="📋" color="purple" defaultWidth="max-w-6xl">
+            <ParafiscalesMensuales parafiscalesMensuales={parafiscalesMensuales} onActualizarMes={actualizarMesParafiscales} onAgregarTecnico={agregarTecnicoMensual} onActualizarTecnico={actualizarTecnicoMensual} onEliminarTecnico={eliminarTecnicoMensual} onImportarExcel={importarParafiscalesExcel} onClose={() => setMostrarParafiscalesMensuales(false)} />
           </FloatingModal>
         )}
 
         {/* Estadísticas */}
-        <Estadisticas 
-          hoyCount={stats.hoyCount}
-          semanaCount={stats.semanaCount}
-          mesCount={stats.mesCount}
-        />
+        <Estadisticas hoyCount={stats.hoyCount} semanaCount={stats.semanaCount} mesCount={stats.mesCount} />
 
-        {/* Registro Rápido - Formulario Visible */}
+        {/* Registro Rápido */}
         <RegistroRapido onRegistrar={registrarRapido} />
 
         {/* Formulario y Vista Previa */}
@@ -1095,17 +957,8 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
           />
 
           <div className="space-y-6">
-            <VistaPrevia 
-              asunto={generarAsunto()}
-              cuerpo={generarCuerpo()}
-            />
-
-            <Productividad
-              productividad={productividad}
-              onActualizarEstado={actualizarEstadoOT}
-              onActualizarRR={actualizarRR}
-              onEliminarOT={eliminarOT}
-            />
+            <VistaPrevia asunto={generarAsunto()} cuerpo={generarCuerpo()} />
+            <Productividad productividad={productividad} onActualizarEstado={actualizarEstadoOT} onActualizarRR={actualizarRR} onEliminarOT={eliminarOT} />
           </div>
         </div>
 
@@ -1114,58 +967,24 @@ ${parafiscalesMensuales.tecnicos.map(tec =>
           <p>💡 Los datos se guardan automáticamente en tu navegador</p>
         </div>
 
-        {/* Modal Selector CC */}
+        {/* Modales adicionales */}
         {mostrarSelectorMultiple && (
-          <ModalSelectorCC
-            contactosGuardados={contactosGuardados}
-            copiaCC={formData.copiaCC}
-            onAgregar={agregarMultiplesCC}
-            onClose={() => setMostrarSelectorMultiple(false)}
-            onAbrirGestionContactos={() => {
-              setMostrarSelectorMultiple(false);
-              setMostrarGestionContactos(true);
-            }}
-          />
+          <ModalSelectorCC contactosGuardados={contactosGuardados} copiaCC={formData.copiaCC} onAgregar={agregarMultiplesCC} onClose={() => setMostrarSelectorMultiple(false)} onAbrirGestionContactos={() => { setMostrarSelectorMultiple(false); setMostrarGestionContactos(true); }} />
         )}
 
-        {/* 🆕 Modal OTs Pendientes */}
-        {mostrarPendientes && (
-          <OTsPendientes
-            onClose={() => setMostrarPendientes(false)}
-            onOTAgendada={handleOTAgendada}
-          />
-        )}
+        {mostrarPendientes && <OTsPendientes onClose={() => setMostrarPendientes(false)} onOTAgendada={handleOTAgendada} />}
 
-        {/* 🗺️ Modal Zonificador Nacional con Buscador */}
         {mostrarZonificador && (
-          <FloatingModal
-            isOpen={mostrarZonificador}
-            onClose={() => setMostrarZonificador(false)}
-            title="Zonificador Nacional - Buscador de Aliados"
-            icon="🗺️"
-            color="blue"
-            defaultWidth="max-w-6xl"
-            defaultHeight="max-h-[90vh]"
-          >
+          <FloatingModal isOpen={mostrarZonificador} onClose={() => setMostrarZonificador(false)} title="Zonificador Nacional - Buscador de Aliados" icon="🗺️" color="blue" defaultWidth="max-w-6xl" defaultHeight="max-h-[90vh]">
             <ZonificadorMejorado />
           </FloatingModal>
         )}
 
-        {/* 🔍 Modal Búsqueda Rápida */}
-        {mostrarBusqueda && (
-          <BusquedaRapida
-            productividad={productividad}
-            onSeleccionarOT={handleSeleccionarOT}
-            onClose={() => setMostrarBusqueda(false)}
-          />
-        )}
+        {mostrarBusqueda && <BusquedaRapida productividad={productividad} onSeleccionarOT={handleSeleccionarOT} onClose={() => setMostrarBusqueda(false)} />}
 
-        {/* 📚 Modal Guía de Escalamiento */}
-        {mostrarGuiaEscalamiento && (
-          <GuiaEscalamiento
-            onClose={() => setMostrarGuiaEscalamiento(false)}
-          />
-        )}
+        {mostrarGuiaEscalamiento && <GuiaEscalamiento onClose={() => setMostrarGuiaEscalamiento(false)} />}
+
+        {mostrarGestionPDT && <GestionPDT onClose={() => setMostrarGestionPDT(false)} />}
       </div>
     </div>
   );
