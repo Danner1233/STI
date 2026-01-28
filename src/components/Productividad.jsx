@@ -6,6 +6,7 @@ const Productividad = ({
   productividad, 
   onActualizarEstado, 
   onActualizarRR,
+  onActualizarObservaciones, // ← NUEVO
   onEliminarOT
 }) => {
   
@@ -502,6 +503,54 @@ const Productividad = ({
                         className="w-48 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+
+                    {/* 🆕 Campo de Observaciones con botón de actualización */}
+                    {onActualizarObservaciones && (
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <label className="block text-xs font-semibold text-blue-900 mb-2">
+                          💬 Observaciones de actividades:
+                        </label>
+                        <div className="flex gap-2">
+                          <textarea
+                            value={ot.observaciones || ""}
+                            onChange={(e) => {
+                              // Actualización temporal en el estado local mientras escribe
+                              const textarea = e.target;
+                              textarea.setAttribute('data-temp-value', e.target.value);
+                            }}
+                            placeholder="Registra actividades o notas sobre esta OT..."
+                            className="flex-1 px-2 py-1.5 text-xs border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 resize-none"
+                            rows="2"
+                          />
+                          <button
+                            onClick={(e) => {
+                              const textarea = e.target.closest('.flex').querySelector('textarea');
+                              const nuevoValor = textarea.getAttribute('data-temp-value') || ot.observaciones || '';
+                              if (nuevoValor !== ot.observaciones) {
+                                onActualizarObservaciones(ot.id, nuevoValor);
+                              } else {
+                                alert('⚠️ No hay cambios en las observaciones');
+                              }
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1 rounded transition whitespace-nowrap"
+                          >
+                            💬 Actualizar
+                          </button>
+                        </div>
+                        <p className="text-xs text-blue-600 mt-1">
+                          💡 Al actualizar, la fecha de esta OT cambiará a HOY
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Indicador de actualización reciente */}
+                    {ot.actualizadoRecientemente && (
+                      <div className="mt-2">
+                        <span className="inline-block bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                          🆕 Actualizado recientemente
+                        </span>
+                      </div>
+                    )}
                     
                     {/* Mostrar destinatarios en copia si existen */}
                     {ot.copiaCC && ot.copiaCC.length > 0 && (

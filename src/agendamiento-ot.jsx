@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 
 // ✅ COMPONENTES MODULARES
@@ -48,7 +48,9 @@ const AgendamientoOT = () => {
     telefono: "",
     tipoServicio: "ENTREGA DE SERVICIO",
     servicioPDT: "",
-    generarPDT: false,
+    generarPDT: null, // null = no decidido, true = necesita, false = no necesita
+    pdtSubido: false, // ← NUEVO: Confirmación de que subió el PDT
+    confirmoNoPDT: false, // ← NUEVO: Confirmación de que NO necesita PDT
     observaciones: "",
     duracion: "4-8 horas",
     consensus: false,
@@ -93,6 +95,7 @@ const AgendamientoOT = () => {
   const [mostrarSelectorMultiple, setMostrarSelectorMultiple] = useState(false);
   const [mostrarConfigZoho, setMostrarConfigZoho] = useState(false);
   const [mostrarPendientes, setMostrarPendientes] = useState(false);
+  const [forceUpdatePendientes, setForceUpdatePendientes] = useState(0); // ← Para forzar actualización
   const [mostrarMenu, setMostrarMenu] = useState(false);
   const [mostrarZonificador, setMostrarZonificador] = useState(false);
   const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
@@ -100,6 +103,7 @@ const AgendamientoOT = () => {
   const [mostrarGestionPDT, setMostrarGestionPDT] = useState(false);
 
   const [archivoZip, setArchivoZip] = useState(null);
+  const fileInputRef = useRef(null); // ← REF para resetear input file
   const [copied, setCopied] = useState(false);
   const [registrado, setRegistrado] = useState(false);
 
@@ -132,7 +136,36 @@ const AgendamientoOT = () => {
   }, [parafiscalesMensuales]);
 
   useEffect(() => {
-    localStorage.setItem("productividad-ot", JSON.stringify(productividad));
+    try {
+      // 🔥 LIMITAR A ÚLTIMOS 500 REGISTROS para no llenar localStorage
+      const registrosLimitados = productividad.slice(0, 500);
+      localStorage.setItem("productividad-ot", JSON.stringify(registrosLimitados));
+      
+      // Si teníamos más de 500, avisar
+      if (productividad.length > 500) {
+        console.warn(`⚠️ Productividad tiene ${productividad.length} registros. Solo se guardan los últimos 500.`);
+      }
+    } catch (error) {
+      if (error.name === 'QuotaExceededError') {
+        console.error('❌ LocalStorage lleno. Limpiando registros antiguos...');
+        
+        // LIMPIEZA DE EMERGENCIA: Solo los últimos 100 registros
+        try {
+          const registrosEmergencia = productividad.slice(0, 100);
+          localStorage.setItem("productividad-ot", JSON.stringify(registrosEmergencia));
+          alert(
+            '⚠️ ADVERTENCIA: LocalStorage lleno\n\n' +
+            'Se han guardado solo los últimos 100 registros.\n\n' +
+            'Recomendación: Exporta tu historial completo a Excel y limpia registros antiguos.'
+          );
+        } catch (e) {
+          console.error('❌ No se pudo guardar ni con limpieza de emergencia:', e);
+          alert('❌ Error crítico: No se puede guardar en localStorage. Exporta tus datos YA.');
+        }
+      } else {
+        console.error('Error guardando productividad:', error);
+      }
+    }
   }, [productividad]);
 
   useEffect(() => {
@@ -496,7 +529,190 @@ ${parafiscalesMensuales.tecnicos
       });
   };
 
+  // 📥 FUNCIÓN PARA DESCARGAR PLANTILLA PDT MANUALMENTE
+  const descargarPlantillaPDTManual = async (servicioPDT) => {
+    try {
+      if (!servicioPDT) {
+        alert('⚠️ Selecciona un tipo de servicio PDT primero');
+        return;
+      }
+
+      const plantilla = await obtenerPlantillaPDT(servicioPDT);
+
+      if (!plantilla) {
+        alert(`⚠️ No hay plantilla configurada para: ${servicioPDT}\n\nPor favor, sube la plantilla en Gestión de PDTs`);
+        return;
+      }
+
+      if (!plantilla.base64) {
+        alert("⚠️ La plantilla existe pero no tiene el archivo. Intenta subirla de nuevo.");
+        return;
+      }
+
+      const datosOT = {
+        numeroOT: formData.numeroOT || 'PLANTILLA',
+        cliente: formData.cliente || 'CLIENTE',
+        fecha: new Date().toLocaleDateString("es-CO"),
+        ciudad: formData.ciudad || '',
+        direccion: formData.direccion || '',
+        servicio: servicioPDT,
+      };
+
+      const resultado = await generarPDT(datosOT, plantilla.base64);
+
+      if (resultado.success) {
+        console.log(`✅ Plantilla PDT descargada: ${resultado.nombreArchivo}`);
+        alert(
+          `✅ Plantilla descargada exitosamente\n\n` +
+          `Archivo: ${resultado.nombreArchivo}\n\n` +
+          `📝 Ahora:\n` +
+          `1. Abre el archivo Excel\n` +
+          `2. Completa todos los campos requeridos\n` +
+          `3. Guarda el archivo\n` +
+          `4. Adjúntalo al correo de la OT\n` +
+          `5. Marca el checkbox "✅ Ya adjunté el PDT"`
+        );
+      } else {
+        console.error("Error generando plantilla PDT:", resultado.error);
+        alert(`⚠️ Error al descargar plantilla: ${resultado.error}`);
+      }
+    } catch (error) {
+      console.error("Error en descarga manual PDT:", error);
+      alert(`❌ Error inesperado: ${error.message}`);
+    }
+  };
+
+  // Hacer la función accesible globalmente para el formulario
+  React.useEffect(() => {
+    window.descargarPlantillaPDTManual = descargarPlantillaPDTManual;
+    return () => {
+      delete window.descargarPlantillaPDTManual;
+    };
+  }, [formData.numeroOT, formData.cliente, formData.ciudad, formData.direccion]);
+
   const enviarCorreoZoho = async () => {
+    // ⚠️ VALIDACIÓN OBLIGATORIA DE PDT
+    if (formData.generarPDT === null || formData.generarPDT === undefined || formData.generarPDT === '') {
+      alert(
+        "🚨 VALIDACIÓN REQUERIDA 🚨\n\n" +
+        "Debes indicar si necesitas o NO un PDT para esta OT.\n\n" +
+        "Por favor:\n" +
+        "1. Revisa la sección 'PDT - Plan Técnico de Despliegue'\n" +
+        "2. Haz click en 'SÍ, necesito PDT' o 'NO necesito PDT'\n" +
+        "3. Intenta enviar el correo de nuevo\n\n" +
+        "⚠️ Esta validación es OBLIGATORIA para evitar olvidar PDTs importantes."
+      );
+      return;
+    }
+
+    // Si dijo SÍ pero no seleccionó servicio
+    if (formData.generarPDT === true && !formData.servicioPDT) {
+      alert(
+        "⚠️ FALTA SELECCIONAR SERVICIO ⚠️\n\n" +
+        "Marcaste que SÍ necesitas PDT, pero no has seleccionado el tipo de servicio.\n\n" +
+        "Por favor:\n" +
+        "1. Selecciona el tipo de servicio en el dropdown\n" +
+        "2. Intenta enviar el correo de nuevo"
+      );
+      return;
+    }
+
+    // 🚨 VALIDACIONES ESTRICTAS DE PDT
+    if (formData.generarPDT === null || formData.generarPDT === undefined || formData.generarPDT === '') {
+      alert(
+        "🚨 VALIDACIÓN REQUERIDA - PDT 🚨\n\n" +
+        "Debes indicar si esta OT necesita o NO un PDT.\n\n" +
+        "Por favor:\n" +
+        "1. Revisa la sección 'PDT - Plan Técnico de Despliegue'\n" +
+        "2. Haz click en 'SÍ, necesita PDT' o 'NO necesita PDT'\n" +
+        "3. Intenta enviar el correo de nuevo\n\n" +
+        "⚠️ Esta validación es OBLIGATORIA."
+      );
+      return;
+    }
+
+    // Si necesita PDT pero no seleccionó servicio
+    if (formData.generarPDT === true && !formData.servicioPDT) {
+      alert(
+        "⚠️ FALTA SELECCIONAR SERVICIO PDT ⚠️\n\n" +
+        "Marcaste que SÍ necesita PDT, pero no has seleccionado el tipo de servicio.\n\n" +
+        "Por favor:\n" +
+        "1. Selecciona el tipo de servicio en el dropdown\n" +
+        "2. Descarga la plantilla PDT\n" +
+        "3. Llénala y adjúntala al correo\n" +
+        "4. Marca el checkbox de confirmación\n" +
+        "5. Intenta enviar el correo de nuevo"
+      );
+      return;
+    }
+
+    // Si necesita PDT pero NO confirmó que lo subió
+    if (formData.generarPDT === true && formData.servicioPDT && !formData.pdtSubido) {
+      const confirmacionPDT = window.confirm(
+        "🚨 VALIDACIÓN CRÍTICA - PDT 🚨\n\n" +
+        `Esta OT REQUIERE un PDT del tipo "${formData.servicioPDT}"\n\n` +
+        "❌ NO has marcado que adjuntaste el PDT\n\n" +
+        "¿Realmente quieres enviar el correo SIN adjuntar el PDT?\n\n" +
+        "⚠️ CONSECUENCIAS:\n" +
+        "• El cliente NO recibirá el plan técnico\n" +
+        "• Puede haber retrasos en la implementación\n" +
+        "• Falta de documentación técnica obligatoria\n" +
+        "• Incumplimiento de procesos\n\n" +
+        "SI ya adjuntaste el PDT:\n" +
+        '→ Click "Cancelar" y marca el checkbox de confirmación\n\n' +
+        "SI NO has adjuntado el PDT:\n" +
+        '→ Click "Cancelar", descarga la plantilla, llénala y adjúntala\n\n' +
+        "¿Enviar de todas formas SIN PDT? (NO recomendado)"
+      );
+
+      if (!confirmacionPDT) {
+        alert(
+          "✅ Correo NO enviado.\n\n" +
+          "📋 Por favor:\n" +
+          `1. Descarga la plantilla PDT "${formData.servicioPDT}"\n` +
+          "2. Llena la plantilla con los datos de la OT\n" +
+          "3. Adjúntala al correo\n" +
+          "4. Marca el checkbox '✅ Ya adjunté el PDT'\n" +
+          "5. Intenta enviar de nuevo"
+        );
+        return;
+      }
+
+      // Segunda confirmación más severa
+      const segundaConfirmacionPDT = window.confirm(
+        "🚨🚨🚨 ÚLTIMA ADVERTENCIA - PDT 🚨🚨🚨\n\n" +
+        "Estás a punto de enviar una OT que REQUIERE PDT sin adjuntarlo.\n\n" +
+        "Esto es una FALTA GRAVE de documentación.\n\n" +
+        "El correo quedará registrado como ENVIADO SIN PDT.\n\n" +
+        "¿REALMENTE quieres continuar sin adjuntar el PDT?"
+      );
+
+      if (!segundaConfirmacionPDT) {
+        alert("✅ Correo NO enviado.\n\n¡Gracias por verificar! Adjunta el PDT primero.");
+        return;
+      }
+
+      alert(
+        "⚠️ ENVIANDO SIN PDT ⚠️\n\n" +
+        "El correo se enviará PERO quedará registrado que NO se adjuntó el PDT.\n\n" +
+        "Recuerda enviar el PDT al cliente lo antes posible."
+      );
+    }
+
+    // Si NO necesita PDT pero no confirmó
+    if (formData.generarPDT === false && !formData.confirmoNoPDT) {
+      alert(
+        "⚠️ CONFIRMACIÓN REQUERIDA ⚠️\n\n" +
+        "Has indicado que esta OT NO necesita PDT.\n\n" +
+        "Debes confirmar explícitamente marcando el checkbox:\n" +
+        '"✅ Confirmo que esta OT NO requiere PDT"\n\n' +
+        "Tipo de servicio: " + formData.tipoServicio + "\n" +
+        "Cliente: " + formData.cliente + "\n\n" +
+        "Por favor marca el checkbox de confirmación antes de enviar."
+      );
+      return;
+    }
+
     if (!formData.consensus) {
       const confirmacion = window.confirm(
         "⚠️⚠️⚠️ ATENCIÓN URGENTE ⚠️⚠️⚠️\n\n" +
@@ -584,15 +800,39 @@ ${parafiscalesMensuales.tecnicos
   };
 
   const registrarEnvio = async () => {
-    const nuevo = {
-      id: Date.now(),
-      ...formData,
-      fechaEnvio: new Date().toISOString(),
-      estado: "Enviado",
-      rr: "",
-    };
-
-    setProductividad((prev) => [nuevo, ...prev]);
+    // 🔍 VERIFICAR SI YA EXISTE EN PRODUCTIVIDAD (desde pendientes)
+    const otExistente = productividad.find(ot => ot.numeroOT === formData.numeroOT);
+    
+    if (otExistente) {
+      // ✅ ACTUALIZAR REGISTRO EXISTENTE (no crear duplicado)
+      setProductividad((prev) => 
+        prev.map((ot) => 
+          ot.numeroOT === formData.numeroOT 
+            ? {
+                ...ot,
+                ...formData, // Actualizar con nuevos datos
+                fechaEnvio: new Date().toISOString(),
+                estado: "Enviado",
+                observaciones: formData.observaciones || ot.observaciones,
+                actualizadoRecientemente: true
+              }
+            : ot
+        )
+      );
+      console.log(`✅ OT ${formData.numeroOT} ACTUALIZADA de "Pendiente" a "Enviado" (sin duplicar)`);
+    } else {
+      // ✅ CREAR NUEVO REGISTRO (OT no existía antes)
+      const nuevo = {
+        id: Date.now(),
+        ...formData,
+        fechaEnvio: new Date().toISOString(),
+        estado: "Enviado",
+        rr: "",
+      };
+      setProductividad((prev) => [nuevo, ...prev]);
+      console.log(`✅ OT ${formData.numeroOT} CREADA en productividad`);
+    }
+    
     setRegistrado(true);
     setTimeout(() => setRegistrado(false), 2000);
 
@@ -602,44 +842,22 @@ ${parafiscalesMensuales.tecnicos
     if (nuevosPendientes.length !== pendientes.length) {
       localStorage.setItem("ots-pendientes", JSON.stringify(nuevosPendientes));
       console.log(`✅ OT ${formData.numeroOT} quitada de pendientes automáticamente`);
+      
+      // 🆕 FORZAR ACTUALIZACIÓN del componente OTsPendientes
+      setForceUpdatePendientes(prev => {
+        const newValue = prev + 1;
+        console.log(`🔄 Force update pendientes: ${prev} → ${newValue}`);
+        return newValue;
+      });
+      
+      // Alert temporal para debug
+      setTimeout(() => {
+        alert(`✅ OT ${formData.numeroOT} quitada de pendientes y productividad actualizada`);
+      }, 100);
     }
 
-    // 📋 GENERAR PDT SI ESTÁ ACTIVADO
-    if (formData.generarPDT && formData.servicioPDT) {
-      try {
-        const plantilla = await obtenerPlantillaPDT(formData.servicioPDT);
-
-        if (!plantilla) {
-          alert(`⚠️ No hay plantilla configurada para: ${formData.servicioPDT}\n\nPor favor, sube la plantilla en Gestión de PDTs`);
-        } else if (!plantilla.base64) {
-          alert("⚠️ La plantilla existe pero no tiene el archivo. Intenta subirla de nuevo.");
-        } else {
-          const datosOT = {
-            numeroOT: formData.numeroOT,
-            cliente: formData.cliente,
-            fecha: new Date().toLocaleDateString("es-CO"),
-            ciudad: formData.ciudad,
-            direccion: formData.direccion,
-            servicio: formData.servicioPDT,
-          };
-
-          const resultado = await generarPDT(datosOT, plantilla.base64);
-
-          if (resultado.success) {
-            console.log(`✅ PDT generado: ${resultado.nombreArchivo}`);
-            setTimeout(() => {
-              alert(`✅ PDT descargado: ${resultado.nombreArchivo}`);
-            }, 500);
-          } else {
-            console.error("Error generando PDT:", resultado.error);
-            alert(`⚠️ Error al generar PDT: ${resultado.error}`);
-          }
-        }
-      } catch (error) {
-        console.error("Error en proceso PDT:", error);
-        alert(`❌ Error inesperado: ${error.message}`);
-      }
-    }
+    // 🗑️ DESCARGA AUTOMÁTICA DE PDT ELIMINADA
+    // El usuario descarga manualmente cuando quiera usando el botón en el formulario
 
     // Limpiar formulario
     setFormData({
@@ -654,7 +872,9 @@ ${parafiscalesMensuales.tecnicos
       telefono: "",
       tipoServicio: "ENTREGA DE SERVICIO",
       servicioPDT: "",
-      generarPDT: false,
+      generarPDT: null,
+      pdtSubido: false,
+      confirmoNoPDT: false,
       observaciones: "",
       duracion: "4-8 horas",
       consensus: false,
@@ -662,40 +882,91 @@ ${parafiscalesMensuales.tecnicos
       copiaCC: [],
     });
     setArchivoZip(null);
+    
+    // 🆕 RESETEAR INPUT FILE para permitir seleccionar archivos de nuevo
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   // ========== REGISTRO RÁPIDO ==========
-  const registrarRapido = (datosRapidos) => {
-    const nuevoRegistro = {
-      id: Date.now(),
-      numeroOT: datosRapidos.numeroOT,
-      rr: datosRapidos.rr || "",
-      cliente: datosRapidos.cliente,
-      ciudad: "",
-      direccion: "",
-      fecha: datosRapidos.fecha || "",
-      hora: "",
-      correoDestino: "",
-      contacto: "",
-      telefono: "",
-      tipoServicio: datosRapidos.tipoServicio,
-      observaciones: "📝 Registro rápido - Sin correo enviado",
-      duracion: "",
-      consensus: datosRapidos.consensus,
-      tablaPersonalizada: "",
-      copiaCC: [],
-      fechaEnvio: new Date().toISOString(),
-      estado: "Enviado",
-    };
-
-    setProductividad((prev) => [nuevoRegistro, ...prev]);
+  const registrarRapido = async (datosRapidos) => {
+    // 🔍 VERIFICAR SI YA EXISTE EN PRODUCTIVIDAD (desde pendientes)
+    const otExistente = productividad.find(ot => ot.numeroOT === datosRapidos.numeroOT);
+    
+    if (otExistente) {
+      // ✅ ACTUALIZAR REGISTRO EXISTENTE (no crear duplicado)
+      setProductividad((prev) => 
+        prev.map((ot) => 
+          ot.numeroOT === datosRapidos.numeroOT 
+            ? {
+                ...ot,
+                rr: datosRapidos.rr || ot.rr,
+                cliente: datosRapidos.cliente,
+                fecha: datosRapidos.fecha || ot.fecha,
+                tipoServicio: datosRapidos.tipoServicio,
+                observaciones: datosRapidos.observaciones || ot.observaciones,
+                consensus: datosRapidos.consensus,
+                generarPDT: datosRapidos.generarPDT,
+                servicioPDT: datosRapidos.servicioPDT || "",
+                fechaEnvio: new Date().toISOString(),
+                estado: "Enviado",
+                actualizadoRecientemente: true
+              }
+            : ot
+        )
+      );
+      console.log(`✅ OT ${datosRapidos.numeroOT} ACTUALIZADA de "Pendiente" a "Enviado" (Registro Rápido - sin duplicar)`);
+    } else {
+      // ✅ CREAR NUEVO REGISTRO (OT no existía antes)
+      const nuevoRegistro = {
+        id: Date.now(),
+        numeroOT: datosRapidos.numeroOT,
+        rr: datosRapidos.rr || "",
+        cliente: datosRapidos.cliente,
+        ciudad: "",
+        direccion: "",
+        fecha: datosRapidos.fecha || "",
+        hora: "",
+        correoDestino: "",
+        contacto: "",
+        telefono: "",
+        tipoServicio: datosRapidos.tipoServicio,
+        observaciones: datosRapidos.observaciones || "📝 Registro rápido - Sin correo enviado",
+        duracion: "",
+        consensus: datosRapidos.consensus,
+        generarPDT: datosRapidos.generarPDT,
+        servicioPDT: datosRapidos.servicioPDT || "",
+        tablaPersonalizada: "",
+        copiaCC: [],
+        fechaEnvio: new Date().toISOString(),
+        estado: "Enviado",
+      };
+      setProductividad((prev) => [nuevoRegistro, ...prev]);
+      console.log(`✅ OT ${datosRapidos.numeroOT} CREADA en productividad (Registro Rápido)`);
+    }
 
     const pendientes = JSON.parse(localStorage.getItem("ots-pendientes") || "[]");
     const nuevosPendientes = pendientes.filter((p) => p.numeroOT !== datosRapidos.numeroOT);
     if (nuevosPendientes.length !== pendientes.length) {
       localStorage.setItem("ots-pendientes", JSON.stringify(nuevosPendientes));
       console.log(`✅ OT ${datosRapidos.numeroOT} quitada de pendientes automáticamente (Registro Rápido)`);
+      
+      // 🆕 FORZAR ACTUALIZACIÓN del componente OTsPendientes
+      setForceUpdatePendientes(prev => {
+        const newValue = prev + 1;
+        console.log(`🔄 Force update pendientes (Registro Rápido): ${prev} → ${newValue}`);
+        return newValue;
+      });
+      
+      // Alert temporal para debug
+      setTimeout(() => {
+        alert(`✅ OT ${datosRapidos.numeroOT} quitada de pendientes y productividad actualizada`);
+      }, 100);
     }
+
+    // 🗑️ DESCARGA AUTOMÁTICA DE PDT ELIMINADA
+    // El usuario descarga manualmente cuando quiera usando el botón en el formulario
   };
 
   const actualizarEstadoOT = (id, nuevoEstado) => {
@@ -704,6 +975,60 @@ ${parafiscalesMensuales.tecnicos
 
   const actualizarRR = (id, nuevoRR) => {
     setProductividad((prev) => prev.map((ot) => (ot.id === id ? { ...ot, rr: nuevoRR } : ot)));
+  };
+
+  // 🗑️ BORRAR TODAS LAS OTs DE PRODUCTIVIDAD
+  const borrarTodasLasOTs = () => {
+    const totalRegistros = productividad.length;
+    
+    if (totalRegistros === 0) {
+      alert('✅ No hay registros en productividad.\n\nProductividad ya está vacía.');
+      return;
+    }
+    
+    if (confirm(
+      `🗑️ BORRAR TODA LA PRODUCTIVIDAD\n\n` +
+      `Se eliminarán TODOS los ${totalRegistros} registros de productividad.\n\n` +
+      `⚠️ ADVERTENCIA:\n` +
+      `• Esta acción es PERMANENTE\n` +
+      `• NO se puede deshacer\n` +
+      `• Se recomienda exportar a Excel primero\n\n` +
+      `¿Estás SEGURO de que quieres borrar todo?`
+    )) {
+      // Doble confirmación
+      if (confirm(
+        `⚠️ ÚLTIMA CONFIRMACIÓN ⚠️\n\n` +
+        `Vas a eliminar ${totalRegistros} registros.\n\n` +
+        `¿Confirmas que quieres BORRAR TODO?\n\n` +
+        `(Esta es tu última oportunidad para cancelar)`
+      )) {
+        setProductividad([]);
+        alert(`✅ Productividad borrada completamente.\n\n${totalRegistros} registros eliminados.\n\nLocalStorage liberado.`);
+      }
+    }
+  };
+
+  // 🆕 ACTUALIZAR OBSERVACIONES Y FECHA
+  const actualizarObservaciones = (id, nuevasObservaciones) => {
+    const ahora = new Date().toISOString();
+    setProductividad((prev) => 
+      prev.map((ot) => 
+        ot.id === id 
+          ? { 
+              ...ot, 
+              observaciones: nuevasObservaciones,
+              fechaEnvio: ahora, // ← Actualizar a HOY
+              actualizadoRecientemente: true // ← Marcar como actualizado
+            } 
+          : ot
+      )
+    );
+    
+    alert(
+      '✅ Observaciones actualizadas\n\n' +
+      '📅 La fecha de esta OT se actualizó a HOY para reflejar la actividad reciente.\n\n' +
+      '💡 Esta OT aparecerá ahora en los filtros de "Hoy" y "Semana".'
+    );
   };
 
   const eliminarOT = (id) => {
@@ -746,6 +1071,29 @@ ${parafiscalesMensuales.tecnicos
     setMostrarPendientes(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
     alert("📝 Formulario llenado con datos de la OT.\n\nCompleta los campos restantes (fecha, hora, correo destino) y envía el correo.");
+  };
+
+  // 🆕 REGISTRAR OT PENDIENTE EN PRODUCTIVIDAD
+  const handleRegistrarPendienteEnProductividad = (registroProductividad) => {
+    setProductividad((prev) => [registroProductividad, ...prev]);
+    console.log(`✅ OT ${registroProductividad.numeroOT} registrada en productividad con estado "Pendiente"`);
+  };
+
+  // 🆕 ACTUALIZAR OT EN PRODUCTIVIDAD (sin crear duplicado)
+  const handleActualizarProductividad = (id, cambios, eliminar = false) => {
+    if (eliminar) {
+      // Eliminar de productividad
+      setProductividad((prev) => prev.filter((ot) => ot.id !== id));
+      console.log(`✅ OT eliminada de productividad (ID: ${id})`);
+    } else {
+      // Actualizar campos
+      setProductividad((prev) =>
+        prev.map((ot) =>
+          ot.id === id ? { ...ot, ...cambios } : ot
+        )
+      );
+      console.log(`✅ OT actualizada en productividad (ID: ${id})`, cambios);
+    }
   };
 
   const calcularEstadisticas = () => {
@@ -815,6 +1163,14 @@ ${parafiscalesMensuales.tecnicos
                 <button onClick={() => setMostrarZonificador(!mostrarZonificador)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2" title="Zonificador Nacional">
                   <Map size={18} />
                   <span className="hidden xl:inline">Zonas</span>
+                </button>
+
+                <button 
+                  onClick={borrarTodasLasOTs} 
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2" 
+                  title="Borrar TODA la productividad"
+                >
+                  🗑️ <span className="hidden xl:inline">Borrar Todo</span>
                 </button>
 
                 <button onClick={() => setMostrarGuiaEscalamiento(!mostrarGuiaEscalamiento)} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2" title="Guía de Escalamiento">
@@ -949,7 +1305,13 @@ ${parafiscalesMensuales.tecnicos
             onMostrarSelectorMultiple={() => setMostrarSelectorMultiple(true)}
             archivoZip={archivoZip}
             onArchivoZipChange={handleArchivoZip}
-            onEliminarArchivo={() => setArchivoZip(null)}
+            fileInputRef={fileInputRef}
+            onEliminarArchivo={() => {
+              setArchivoZip(null);
+              if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+              }
+            }}
             onCopiarCorreo={copiarCorreo}
             onEnviarCorreo={enviarCorreoZoho}
             copied={copied}
@@ -958,13 +1320,31 @@ ${parafiscalesMensuales.tecnicos
 
           <div className="space-y-6">
             <VistaPrevia asunto={generarAsunto()} cuerpo={generarCuerpo()} />
-            <Productividad productividad={productividad} onActualizarEstado={actualizarEstadoOT} onActualizarRR={actualizarRR} onEliminarOT={eliminarOT} />
+            <Productividad 
+              productividad={productividad} 
+              onActualizarEstado={actualizarEstadoOT} 
+              onActualizarRR={actualizarRR} 
+              onActualizarObservaciones={actualizarObservaciones}
+              onEliminarOT={eliminarOT} 
+            />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-6 bg-white rounded-lg shadow p-4 text-center text-sm text-gray-600">
-          <p>💡 Los datos se guardan automáticamente en tu navegador</p>
+        <div className="mt-6 bg-white rounded-lg shadow p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              💡 Los datos se guardan automáticamente en tu navegador
+            </p>
+            <div className="text-xs text-gray-500">
+              📊 Registros en productividad: <span className="font-bold text-blue-600">{productividad.length}</span>
+              {productividad.length > 400 && (
+                <span className="ml-2 text-orange-600 font-semibold">
+                  ⚠️ Considera limpiar registros antiguos
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Modales adicionales */}
@@ -972,7 +1352,15 @@ ${parafiscalesMensuales.tecnicos
           <ModalSelectorCC contactosGuardados={contactosGuardados} copiaCC={formData.copiaCC} onAgregar={agregarMultiplesCC} onClose={() => setMostrarSelectorMultiple(false)} onAbrirGestionContactos={() => { setMostrarSelectorMultiple(false); setMostrarGestionContactos(true); }} />
         )}
 
-        {mostrarPendientes && <OTsPendientes onClose={() => setMostrarPendientes(false)} onOTAgendada={handleOTAgendada} />}
+        {mostrarPendientes && (
+          <OTsPendientes 
+            key={forceUpdatePendientes}
+            onClose={() => setMostrarPendientes(false)} 
+            onOTAgendada={handleOTAgendada} 
+            onRegistrarEnProductividad={handleRegistrarPendienteEnProductividad}
+            onActualizarProductividad={handleActualizarProductividad}
+          />
+        )}
 
         {mostrarZonificador && (
           <FloatingModal isOpen={mostrarZonificador} onClose={() => setMostrarZonificador(false)} title="Zonificador Nacional - Buscador de Aliados" icon="🗺️" color="blue" defaultWidth="max-w-6xl" defaultHeight="max-h-[90vh]">

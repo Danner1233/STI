@@ -1,6 +1,6 @@
-import React from "react";
-import { Copy, Mail, FileArchive } from "lucide-react";
-import { SERVICIOS_PDT } from "../constants/serviciosPDT";
+import React from 'react';
+import { Copy, Mail, FileArchive } from 'lucide-react';
+import { SERVICIOS_PDT } from '../constants/serviciosPDT';
 
 const Formulario = ({
   formData,
@@ -14,11 +14,12 @@ const Formulario = ({
   onMostrarSelectorMultiple,
   archivoZip,
   onArchivoZipChange,
+  fileInputRef, // ← NUEVO: ref para el input file
   onEliminarArchivo,
   onCopiarCorreo,
   onEnviarCorreo,
   copied,
-  registrado,
+  registrado
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -64,57 +65,239 @@ const Formulario = ({
           </div>
         </div>
 
-        {/* Servicio PDT */}
-        {/* Servicio PDT */}
-        <div className="bg-indigo-50 border-2 border-indigo-300 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-semibold text-indigo-900">
-              📋 Servicio PDT (Plan Técnico de Despliegue)
+        {/* Servicio PDT - OBLIGATORIO REVISAR */}
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 border-4 border-red-500 rounded-lg p-4 shadow-lg animate-pulse">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-3xl">⚠️</span>
+            <div className="flex-1">
+              <label className="block text-lg font-bold text-red-900">
+                📋 PDT - Plan Técnico de Despliegue
+              </label>
+              <p className="text-xs text-red-700 font-semibold mt-1">
+                🚨 OBLIGATORIO: Debes indicar si necesitas o no PDT para esta OT
+              </p>
+            </div>
+          </div>
+          
+          {/* Paso 1: ¿Necesita PDT? SI/NO */}
+          <div className="mb-4">
+            <label className="block text-sm font-bold text-red-900 mb-2">
+              1️⃣ ¿Esta OT necesita PDT?
             </label>
-
-            {/* Checkbox para activar/desactivar generación */}
-            <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1 rounded-lg border-2 border-indigo-400">
-              <input
-                type="checkbox"
-                name="generarPDT"
-                checked={formData.generarPDT}
-                onChange={(e) => {
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
                   const event = {
                     target: {
-                      name: "generarPDT",
-                      value: e.target.checked,
-                    },
+                      name: 'generarPDT',
+                      value: true
+                    }
                   };
                   onInputChange(event);
                 }}
-                className="w-4 h-4 text-indigo-600 rounded"
-              />
-              <span className="text-xs font-semibold text-indigo-900">
-                {formData.generarPDT ? "✅ Generar PDT" : "⚪ No generar"}
-              </span>
-            </label>
+                className={`py-3 px-4 rounded-lg font-bold text-base border-3 transition ${
+                  formData.generarPDT === true
+                    ? 'bg-green-600 text-white border-green-800 shadow-lg'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'
+                }`}
+              >
+                {formData.generarPDT === true ? '✅' : '⚪'} SÍ, necesita PDT
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  const event = {
+                    target: {
+                      name: 'generarPDT',
+                      value: false
+                    }
+                  };
+                  onInputChange(event);
+                  // Limpiar campos relacionados
+                  const eventServicio = {
+                    target: {
+                      name: 'servicioPDT',
+                      value: ''
+                    }
+                  };
+                  onInputChange(eventServicio);
+                  const eventSubido = {
+                    target: {
+                      name: 'pdtSubido',
+                      value: false
+                    }
+                  };
+                  onInputChange(eventSubido);
+                  const eventConfirmo = {
+                    target: {
+                      name: 'confirmoNoPDT',
+                      value: false
+                    }
+                  };
+                  onInputChange(eventConfirmo);
+                }}
+                className={`py-3 px-4 rounded-lg font-bold text-base border-3 transition ${
+                  formData.generarPDT === false
+                    ? 'bg-gray-600 text-white border-gray-800 shadow-lg'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                {formData.generarPDT === false ? '✅' : '⚪'} NO necesita PDT
+              </button>
+            </div>
           </div>
+          
+          {/* Paso 2: Si necesita PDT - Seleccionar servicio */}
+          {formData.generarPDT === true && (
+            <div className="mb-4 animate-fadeIn">
+              <label className="block text-sm font-bold text-red-900 mb-2">
+                2️⃣ Tipo de servicio PDT:
+              </label>
+              <select
+                name="servicioPDT"
+                value={formData.servicioPDT}
+                onChange={onInputChange}
+                className="w-full px-4 py-3 border-3 border-red-400 bg-white rounded-lg focus:ring-2 focus:ring-red-500 font-semibold text-base"
+              >
+                <option value="">-- Selecciona el tipo de servicio --</option>
+                {SERVICIOS_PDT.map(servicio => (
+                  <option key={servicio} value={servicio}>
+                    {servicio}
+                  </option>
+                ))}
+              </select>
 
-          <select
-            name="servicioPDT"
-            value={formData.servicioPDT}
-            onChange={onInputChange}
-            className="w-full px-3 py-2 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium"
-            disabled={!formData.generarPDT}
-          >
-            <option value="">-- Selecciona servicio para generar PDT --</option>
-            {SERVICIOS_PDT.map((servicio) => (
-              <option key={servicio} value={servicio}>
-                {servicio}
-              </option>
-            ))}
-          </select>
+              {/* Botón para descargar plantilla manualmente */}
+              {formData.servicioPDT && (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Esta función será manejada por el padre
+                      if (window.descargarPlantillaPDTManual) {
+                        window.descargarPlantillaPDTManual(formData.servicioPDT);
+                      }
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    📥 Descargar Plantilla PDT - {formData.servicioPDT}
+                  </button>
+                  <p className="text-xs text-blue-700 mt-1 text-center">
+                    💡 Descarga la plantilla, llénala y adjúntala al correo
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
-          <p className="text-xs text-indigo-700 mt-2">
-            {formData.generarPDT
-              ? "💡 Al enviar el correo, se descargará automáticamente el PDT con los datos pre-llenados"
-              : "ℹ️ Activa el checkbox si necesitas generar el PDT"}
-          </p>
+          {/* Paso 3: Si necesita PDT - Confirmar que lo subió */}
+          {formData.generarPDT === true && formData.servicioPDT && (
+            <div className="mb-4 bg-yellow-50 border-2 border-yellow-500 rounded-lg p-3 animate-fadeIn">
+              <label className="block text-sm font-bold text-yellow-900 mb-2">
+                3️⃣ ¿Ya subiste/adjuntaste el PDT completo?
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="pdtSubido"
+                  checked={formData.pdtSubido || false}
+                  onChange={(e) => {
+                    const event = {
+                      target: {
+                        name: 'pdtSubido',
+                        value: e.target.checked
+                      }
+                    };
+                    onInputChange(event);
+                  }}
+                  className="w-6 h-6 cursor-pointer"
+                  style={{ accentColor: '#10B981' }}
+                />
+                <span className="text-sm font-bold text-gray-800">
+                  {formData.pdtSubido ? '✅ Sí, ya adjunté el PDT completo y listo' : '⚠️ Marca cuando hayas adjuntado el PDT'}
+                </span>
+              </label>
+            </div>
+          )}
+
+          {/* Paso 4: Si NO necesita PDT - Confirmar */}
+          {formData.generarPDT === false && (
+            <div className="mb-4 bg-orange-50 border-2 border-orange-500 rounded-lg p-3 animate-fadeIn">
+              <label className="block text-sm font-bold text-orange-900 mb-2">
+                ⚠️ Confirma que NO se requiere PDT:
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="confirmoNoPDT"
+                  checked={formData.confirmoNoPDT || false}
+                  onChange={(e) => {
+                    const event = {
+                      target: {
+                        name: 'confirmoNoPDT',
+                        value: e.target.checked
+                      }
+                    };
+                    onInputChange(event);
+                  }}
+                  className="w-6 h-6 cursor-pointer"
+                  style={{ accentColor: '#EF4444' }}
+                />
+                <span className="text-sm font-bold text-gray-800">
+                  {formData.confirmoNoPDT ? '✅ Confirmo que esta OT NO requiere PDT' : '⚠️ Confirma que NO necesita PDT'}
+                </span>
+              </label>
+            </div>
+          )}
+          
+          {/* Mensajes según estado */}
+          <div className="p-3 rounded border-l-4">
+            {formData.generarPDT === null || formData.generarPDT === undefined || formData.generarPDT === '' ? (
+              <div className="bg-red-100 border-red-600">
+                <p className="text-sm font-bold text-red-900 flex items-center gap-2">
+                  <span className="text-xl">🚫</span>
+                  DEBES SELECCIONAR SI NECESITAS O NO PDT ANTES DE ENVIAR
+                </p>
+              </div>
+            ) : formData.generarPDT === true && !formData.servicioPDT ? (
+              <div className="bg-orange-100 border-orange-600">
+                <p className="text-sm font-bold text-orange-900 flex items-center gap-2">
+                  <span className="text-xl">⚠️</span>
+                  SELECCIONA EL TIPO DE SERVICIO para descargar la plantilla
+                </p>
+              </div>
+            ) : formData.generarPDT === true && formData.servicioPDT && !formData.pdtSubido ? (
+              <div className="bg-red-100 border-red-600">
+                <p className="text-sm font-bold text-red-900 flex items-center gap-2">
+                  <span className="text-xl">🚨</span>
+                  DEBES CONFIRMAR QUE ADJUNTASTE EL PDT ANTES DE ENVIAR
+                </p>
+              </div>
+            ) : formData.generarPDT === true && formData.pdtSubido ? (
+              <div className="bg-green-100 border-green-600">
+                <p className="text-sm font-bold text-green-900 flex items-center gap-2">
+                  <span className="text-xl">✅</span>
+                  PDT confirmado para "{formData.servicioPDT}" - Puedes enviar el correo
+                </p>
+              </div>
+            ) : formData.generarPDT === false && !formData.confirmoNoPDT ? (
+              <div className="bg-orange-100 border-orange-600">
+                <p className="text-sm font-bold text-orange-900 flex items-center gap-2">
+                  <span className="text-xl">⚠️</span>
+                  DEBES CONFIRMAR que esta OT NO requiere PDT
+                </p>
+              </div>
+            ) : (
+              <div className="bg-gray-100 border-gray-600">
+                <p className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                  <span className="text-xl">✓</span>
+                  Confirmado - Esta OT NO requiere PDT
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Consensus */}
@@ -127,23 +310,24 @@ const Formulario = ({
               onChange={(e) => {
                 const event = {
                   target: {
-                    name: "consensus",
-                    value: e.target.checked,
-                  },
+                    name: 'consensus',
+                    value: e.target.checked
+                  }
                 };
                 onInputChange(event);
               }}
               className="w-5 h-5 text-yellow-600 rounded cursor-pointer border-2 border-yellow-600"
-              style={{ accentColor: "#ca8a04" }}
+              style={{ accentColor: '#ca8a04' }}
             />
             <span className="text-sm font-semibold text-yellow-800">
-              {formData.consensus ? "✅" : "⚠️"} Agendado en Consensus
+              {formData.consensus ? '✅' : '⚠️'} Agendado en Consensus
             </span>
           </label>
           <p className="text-xs text-yellow-700 mt-1 ml-7 font-medium">
-            {formData.consensus
-              ? "¡Perfecto! Ya está agendado en Consensus"
-              : "⚠️ RECORDATORIO: Debes agendar esta OT en Consensus y marcar esta casilla"}
+            {formData.consensus 
+              ? '¡Perfecto! Ya está agendado en Consensus' 
+              : '⚠️ RECORDATORIO: Debes agendar esta OT en Consensus y marcar esta casilla'
+            }
           </p>
         </div>
 
@@ -274,6 +458,7 @@ const Formulario = ({
                 type="file"
                 accept=".zip,.pdf,.doc,.docx,.xls,.xlsx,.rar,.7z"
                 onChange={onArchivoZipChange}
+                ref={fileInputRef}
                 className="hidden"
               />
             </label>
@@ -312,40 +497,37 @@ const Formulario = ({
             📋 Tabla de Parafiscales Personalizada (Opcional)
           </label>
           <p className="text-xs text-gray-600 mb-2">
-            💡 <strong>Cómo usar:</strong> Copia la tabla desde Excel y pégala
-            aquí (Ctrl+V). El formato se mantendrá en el correo.
+            💡 <strong>Cómo usar:</strong> Copia la tabla desde Excel y pégala aquí (Ctrl+V). El formato se mantendrá en el correo.
           </p>
           <div
             contentEditable={true}
             onPaste={(e) => {
               e.preventDefault();
-              const html = e.clipboardData.getData("text/html");
+              const html = e.clipboardData.getData('text/html');
               if (html) {
                 const event = {
                   target: {
-                    name: "tablaPersonalizada",
-                    value: html,
-                  },
+                    name: 'tablaPersonalizada',
+                    value: html
+                  }
                 };
                 onInputChange(event);
                 e.currentTarget.innerHTML = html;
               } else {
-                alert(
-                  "⚠️ Por favor copia la tabla desde Excel (no texto plano)",
-                );
+                alert('⚠️ Por favor copia la tabla desde Excel (no texto plano)');
               }
             }}
             onInput={(e) => {
               const event = {
                 target: {
-                  name: "tablaPersonalizada",
-                  value: e.currentTarget.innerHTML,
-                },
+                  name: 'tablaPersonalizada',
+                  value: e.currentTarget.innerHTML
+                }
               };
               onInputChange(event);
             }}
             className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white overflow-auto"
-            style={{ maxHeight: "300px" }}
+            style={{ maxHeight: '300px' }}
             dangerouslySetInnerHTML={{ __html: formData.tablaPersonalizada }}
           />
           <div className="flex gap-2 mt-2">
@@ -354,9 +536,9 @@ const Formulario = ({
               onClick={() => {
                 const event = {
                   target: {
-                    name: "tablaPersonalizada",
-                    value: "",
-                  },
+                    name: 'tablaPersonalizada',
+                    value: ''
+                  }
                 };
                 onInputChange(event);
               }}
@@ -382,7 +564,7 @@ const Formulario = ({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Enviar copia a (CC)
           </label>
-
+          
           <div className="flex gap-2 mb-2">
             <div className="relative flex-1">
               <input
@@ -393,7 +575,7 @@ const Formulario = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="Escribe nombre o email (Ej: santi)"
               />
-
+              
               {/* Sugerencias */}
               {sugerenciasCC.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
@@ -403,18 +585,14 @@ const Formulario = ({
                       onClick={() => onAgregarCC(contacto)}
                       className="px-3 py-2 hover:bg-blue-50 cursor-pointer"
                     >
-                      <div className="font-medium text-sm">
-                        {contacto.nombre}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {contacto.email}
-                      </div>
+                      <div className="font-medium text-sm">{contacto.nombre}</div>
+                      <div className="text-xs text-gray-500">{contacto.email}</div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-
+            
             <button
               type="button"
               onClick={onMostrarSelectorMultiple}
@@ -423,7 +601,7 @@ const Formulario = ({
               📋 Seleccionar Múltiples
             </button>
           </div>
-
+          
           {/* CC agregados */}
           {formData.copiaCC.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
@@ -445,8 +623,7 @@ const Formulario = ({
             </div>
           )}
           <p className="text-xs text-gray-500 mt-1">
-            💡 Presiona Enter para agregar uno, o usa "Seleccionar Múltiples"
-            para varios a la vez.
+            💡 Presiona Enter para agregar uno, o usa "Seleccionar Múltiples" para varios a la vez.
           </p>
         </div>
 
@@ -455,12 +632,12 @@ const Formulario = ({
           <button
             onClick={onCopiarCorreo}
             disabled={
-              !formData.numeroOT ||
-              !formData.cliente ||
-              !formData.ciudad ||
-              !formData.direccion ||
-              !formData.fecha ||
-              !formData.hora ||
+              !formData.numeroOT || 
+              !formData.cliente || 
+              !formData.ciudad || 
+              !formData.direccion || 
+              !formData.fecha || 
+              !formData.hora || 
               !formData.duracion
             }
             className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition"
@@ -482,17 +659,16 @@ const Formulario = ({
               !formData.correoDestino
             }
             className={`flex-1 font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition ${
-              formData.consensus
-                ? "bg-green-600 hover:bg-green-700 text-white"
-                : "bg-yellow-500 hover:bg-yellow-600 text-black border-2 border-yellow-700 animate-pulse"
+              formData.consensus 
+                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                : 'bg-yellow-500 hover:bg-yellow-600 text-black border-2 border-yellow-700 animate-pulse'
             } disabled:bg-gray-300 disabled:cursor-not-allowed disabled:animate-none`}
           >
             <Mail size={20} />
-            {formData.consensus
-              ? registrado
-                ? "✓ Enviado"
-                : "Enviar con Zoho"
-              : "⚠️ Enviar SIN Consensus"}
+            {formData.consensus 
+              ? (registrado ? "✓ Enviado" : "Enviar con Zoho")
+              : "⚠️ Enviar SIN Consensus"
+            }
           </button>
         </div>
       </div>

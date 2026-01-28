@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, CheckCircle, Edit2, Trash2, Clock, User } from 'lucide-react';
+import { Phone, CheckCircle, Edit2, Trash2, Clock, User, UserCheck } from 'lucide-react';
 
-const OTsPendientes = ({ onClose, onOTAgendada }) => {
+const OTsPendientes = ({ onClose, onOTAgendada, onRegistrarEnProductividad, onActualizarProductividad }) => {
   const [ahora] = useState(() => Date.now());
   
   const [pendientes, setPendientes] = useState(() => {
@@ -16,12 +16,13 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
     direccion: '',
     contacto: '',
     telefono: '',
+    lider: '', // ← NUEVO CAMPO
     observaciones: '',
     intentos: 0
   });
 
   const [editando, setEditando] = useState(null);
-  const [filtro, setFiltro] = useState('todas'); // todas, hoy, ayer, semana
+  const [filtro, setFiltro] = useState('todas');
 
   useEffect(() => {
     localStorage.setItem('ots-pendientes', JSON.stringify(pendientes));
@@ -39,6 +40,7 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
       return;
     }
 
+    // Generar timestamp DENTRO del handler de evento (seguro)
     // eslint-disable-next-line react-hooks/purity
     const timestamp = Date.now();
     const pendiente = {
@@ -46,12 +48,46 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
       id: timestamp.toString(),
       fechaCreacion: new Date(timestamp).toISOString(),
       ultimoIntento: new Date(timestamp).toISOString(),
-      estado: 'pendiente'
+      estado: 'pendiente',
+      productividadId: null
     };
 
     setPendientes(prev => [...prev, pendiente]);
+
+    // 🆕 REGISTRAR EN PRODUCTIVIDAD CON ESTADO "PENDIENTE"
+    if (onRegistrarEnProductividad) {
+      const registroProductividad = {
+        id: timestamp,
+        numeroOT: nuevaOT.numeroOT,
+        cliente: nuevaOT.cliente,
+        ciudad: nuevaOT.ciudad || '',
+        direccion: nuevaOT.direccion || '',
+        contacto: nuevaOT.contacto || '',
+        telefono: nuevaOT.telefono || '',
+        lider: nuevaOT.lider || '',
+        observaciones: nuevaOT.observaciones ? `📋 Pendiente: ${nuevaOT.observaciones}` : '📋 OT Pendiente por agendar',
+        fecha: '',
+        hora: '',
+        correoDestino: '',
+        tipoServicio: 'PENDIENTE',
+        duracion: '',
+        consensus: false,
+        tablaPersonalizada: '',
+        copiaCC: [],
+        fechaEnvio: new Date(timestamp).toISOString(),
+        estado: 'Pendiente',
+        rr: '',
+      };
+
+      onRegistrarEnProductividad(registroProductividad);
+      
+      setPendientes(prev => prev.map(p => 
+        p.id === pendiente.id ? { ...p, productividadId: timestamp } : p
+      ));
+    }
+
     limpiarFormulario();
-    alert('✅ OT agregada a pendientes');
+    alert('✅ OT agregada a pendientes y registrada en productividad con estado "Pendiente"');
   };
 
   const actualizarPendiente = () => {
@@ -60,26 +96,57 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
       return;
     }
 
+    // Generar timestamp DENTRO del handler de evento (seguro)
     // eslint-disable-next-line react-hooks/purity
     const timestamp = Date.now();
     setPendientes(prev => prev.map(ot => 
-      ot.id === editando ? { ...ot, ...nuevaOT, fechaModificacion: new Date(timestamp).toISOString() } : ot
+      ot.id === editando ? { 
+        ...ot, 
+        ...nuevaOT, 
+        fechaModificacion: new Date(timestamp).toISOString(),
+        ultimoIntento: new Date(timestamp).toISOString() // ← Actualizar último intento
+      } : ot
     ));
+
+    // 🆕 ACTUALIZAR TAMBIÉN EN PRODUCTIVIDAD SI EXISTE
+    const otEditada = pendientes.find(ot => ot.id === editando);
+    if (otEditada && otEditada.productividadId && onActualizarProductividad) {
+      onActualizarProductividad(otEditada.productividadId, {
+        cliente: nuevaOT.cliente,
+        ciudad: nuevaOT.ciudad,
+        direccion: nuevaOT.direccion,
+        contacto: nuevaOT.contacto,
+        telefono: nuevaOT.telefono,
+        lider: nuevaOT.lider,
+        observaciones: nuevaOT.observaciones ? `📋 Pendiente: ${nuevaOT.observaciones}` : '📋 OT Pendiente por agendar',
+        fechaEnvio: new Date(timestamp).toISOString(), // ← ACTUALIZAR FECHA A HOY
+        actualizadoRecientemente: true // ← Marcar como actualizado
+      });
+    }
     
     setEditando(null);
     limpiarFormulario();
-    alert('✅ OT actualizada');
+    alert('✅ OT actualizada en pendientes y productividad\n\n📅 La fecha se actualizó a HOY para reflejar esta actividad.');
   };
 
   const eliminarPendiente = (id) => {
-    if (confirm('¿Eliminar esta OT de pendientes?')) {
+    if (confirm('¿Eliminar esta OT de pendientes?\n\nNOTA: También se eliminará de productividad si fue registrada desde aquí.')) {
+      const ot = pendientes.find(p => p.id === id);
+      
+      // 🆕 ELIMINAR DE PRODUCTIVIDAD SI FUE CREADA AQUÍ
+      if (ot && ot.productividadId && onActualizarProductividad) {
+        // Usar la función de actualización con null para indicar eliminación
+        onActualizarProductividad(ot.productividadId, null, true);
+      }
+
       setPendientes(prev => prev.filter(ot => ot.id !== id));
-      alert('✅ OT eliminada de pendientes');
+      alert('✅ OT eliminada de pendientes y productividad');
     }
   };
 
   const registrarIntento = (id) => {
-  
+    // Generar timestamp DENTRO del handler de evento (seguro)
+    // eslint-disable-next-line react-hooks/purity
     const timestamp = Date.now();
     setPendientes(prev => prev.map(ot => 
       ot.id === id ? { 
@@ -88,19 +155,42 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
         ultimoIntento: new Date(timestamp).toISOString()
       } : ot
     ));
-    alert('✅ Intento de contacto registrado');
+
+    // 🆕 ACTUALIZAR OBSERVACIONES Y FECHA EN PRODUCTIVIDAD
+    const ot = pendientes.find(p => p.id === id);
+    if (ot && ot.productividadId && onActualizarProductividad) {
+      onActualizarProductividad(ot.productividadId, {
+        observaciones: `📋 Pendiente: ${ot.observaciones || ''} | ${ot.intentos + 1} intentos de contacto`,
+        fechaEnvio: new Date(timestamp).toISOString(), // ← ACTUALIZAR FECHA A HOY
+        actualizadoRecientemente: true // ← Marcar como actualizado
+      });
+    }
+
+    alert('✅ Intento de contacto registrado\n\n📅 La fecha de esta OT se actualizó a HOY.');
   };
 
   const marcarComoAgendada = (ot) => {
-    if (confirm(`¿Marcar OT ${ot.numeroOT} como agendada?\nSe quitará de la lista de pendientes.`)) {
-      // Notificar al componente padre que esta OT fue agendada
+    if (confirm(`¿Marcar OT ${ot.numeroOT} como agendada?\n\n✅ Se actualizará en productividad a estado "Enviado"\n✅ Se quitará de la lista de pendientes\n\n⚠️ Este cambio es permanente.`)) {
+      
+      // 🆕 ACTUALIZAR ESTADO EN PRODUCTIVIDAD (NO CREAR NUEVO)
+      if (ot.productividadId && onActualizarProductividad) {
+        onActualizarProductividad(ot.productividadId, {
+          estado: 'Enviado',
+          observaciones: `✅ Agendada desde OTs Pendientes | ${ot.observaciones || ''}`,
+          tipoServicio: 'ENTREGA DE SERVICIO',
+        });
+      } else {
+        alert('⚠️ Esta OT no tiene un registro vinculado en productividad.\n\nSe quitará de pendientes pero no se actualizará en productividad.');
+      }
+
+      // Notificar al componente padre para llenar formulario si quiere
       if (onOTAgendada) {
         onOTAgendada(ot);
       }
       
-      // Eliminar de pendientes
+      // 🆕 QUITAR DE PENDIENTES
       setPendientes(prev => prev.filter(p => p.id !== ot.id));
-      alert('✅ OT marcada como agendada y quitada de pendientes');
+      alert('✅ OT actualizada en productividad y quitada de pendientes');
     }
   };
 
@@ -112,6 +202,7 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
       direccion: ot.direccion,
       contacto: ot.contacto,
       telefono: ot.telefono,
+      lider: ot.lider || '',
       observaciones: ot.observaciones,
       intentos: ot.intentos
     });
@@ -126,6 +217,7 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
       direccion: '',
       contacto: '',
       telefono: '',
+      lider: '',
       observaciones: '',
       intentos: 0
     });
@@ -173,7 +265,6 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
 
   const pendientesFiltrados = obtenerPendientesFiltrados();
 
-  // Calcular estadísticas directamente (es seguro porque 'ahora' es constante)
   const urgentCount = pendientes.filter(p => {
     const dias = Math.floor((ahora - new Date(p.fechaCreacion)) / 86400000);
     return dias >= 2;
@@ -191,173 +282,181 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
                 OTs Pendientes por Agendar
               </h2>
               <p className="text-orange-100 text-sm mt-1">
-                Gestiona OTs que esperan confirmación del cliente
+                Gestiona OTs que esperan confirmación del cliente | Se registran automáticamente en productividad
               </p>
             </div>
             <button
               onClick={onClose}
               className="text-white hover:bg-orange-700 rounded-full p-2 transition"
             >
-              <span className="text-2xl">×</span>
+              ✕
             </button>
           </div>
         </div>
 
         <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Formulario - Columna Izquierda */}
-            <div className="lg:col-span-1">
-              <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-4 border-2 border-orange-200 sticky top-24">
-                <h3 className="font-bold text-lg text-orange-800 mb-4 flex items-center gap-2">
-                  {editando ? (
-                    <>
-                      <Edit2 className="w-5 h-5" />
-                      Editando OT
-                    </>
-                  ) : (
-                    <>
-                      <Phone className="w-5 h-5" />
-                      Agregar Pendiente
-                    </>
-                  )}
-                </h3>
+          {/* Formulario */}
+          <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg p-6 mb-6 border-2 border-orange-300">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              {editando ? '📝 Editar' : '➕ Agregar'} OT Pendiente
+            </h3>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Número OT *
+                </label>
+                <input
+                  type="text"
+                  value={nuevaOT.numeroOT}
+                  onChange={(e) => setNuevaOT({...nuevaOT, numeroOT: e.target.value})}
+                  className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="22XXXXXX"
+                  disabled={!!editando}
+                />
+              </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Número OT *
-                    </label>
-                    <input
-                      type="text"
-                      value={nuevaOT.numeroOT}
-                      onChange={(e) => setNuevaOT(prev => ({ ...prev, numeroOT: e.target.value }))}
-                      placeholder="22367878"
-                      className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Cliente *
+                </label>
+                <input
+                  type="text"
+                  value={nuevaOT.cliente}
+                  onChange={(e) => setNuevaOT({...nuevaOT, cliente: e.target.value})}
+                  className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="CLARO, TIGO..."
+                />
+              </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Cliente *
-                    </label>
-                    <input
-                      type="text"
-                      value={nuevaOT.cliente}
-                      onChange={(e) => setNuevaOT(prev => ({ ...prev, cliente: e.target.value }))}
-                      placeholder="CLARO"
-                      className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Ciudad
+                </label>
+                <input
+                  type="text"
+                  value={nuevaOT.ciudad}
+                  onChange={(e) => setNuevaOT({...nuevaOT, ciudad: e.target.value})}
+                  className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Bogotá, Medellín..."
+                />
+              </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Ciudad
-                    </label>
-                    <input
-                      type="text"
-                      value={nuevaOT.ciudad}
-                      onChange={(e) => setNuevaOT(prev => ({ ...prev, ciudad: e.target.value }))}
-                      placeholder="BOGOTÁ"
-                      className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Contacto
+                </label>
+                <input
+                  type="text"
+                  value={nuevaOT.contacto}
+                  onChange={(e) => setNuevaOT({...nuevaOT, contacto: e.target.value})}
+                  className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Nombre contacto"
+                />
+              </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Dirección
-                    </label>
-                    <input
-                      type="text"
-                      value={nuevaOT.direccion}
-                      onChange={(e) => setNuevaOT(prev => ({ ...prev, direccion: e.target.value }))}
-                      placeholder="CL 100 10-20"
-                      className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Teléfono
+                </label>
+                <input
+                  type="text"
+                  value={nuevaOT.telefono}
+                  onChange={(e) => setNuevaOT({...nuevaOT, telefono: e.target.value})}
+                  className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="300XXXXXXX"
+                />
+              </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Contacto
-                    </label>
-                    <input
-                      type="text"
-                      value={nuevaOT.contacto}
-                      onChange={(e) => setNuevaOT(prev => ({ ...prev, contacto: e.target.value }))}
-                      placeholder="Juan Pérez"
-                      className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
+                  <UserCheck className="w-4 h-4" />
+                  Líder Asignado
+                </label>
+                <input
+                  type="text"
+                  value={nuevaOT.lider}
+                  onChange={(e) => setNuevaOT({...nuevaOT, lider: e.target.value})}
+                  className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Nombre del líder"
+                />
+              </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Teléfono
-                    </label>
-                    <input
-                      type="text"
-                      value={nuevaOT.telefono}
-                      onChange={(e) => setNuevaOT(prev => ({ ...prev, telefono: e.target.value }))}
-                      placeholder="310 123 4567"
-                      className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Observaciones
-                    </label>
-                    <textarea
-                      value={nuevaOT.observaciones}
-                      onChange={(e) => setNuevaOT(prev => ({ ...prev, observaciones: e.target.value }))}
-                      placeholder="No contesta, buzón de voz, etc."
-                      rows="3"
-                      className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    {editando ? (
-                      <>
-                        <button
-                          onClick={actualizarPendiente}
-                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition"
-                        >
-                          💾 Actualizar
-                        </button>
-                        <button
-                          onClick={limpiarFormulario}
-                          className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg font-semibold transition"
-                        >
-                          ✖️ Cancelar
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={agregarPendiente}
-                        className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white py-2 px-4 rounded-lg font-semibold transition"
-                      >
-                        ➕ Agregar Pendiente
-                      </button>
-                    )}
-                  </div>
-                </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Dirección
+                </label>
+                <input
+                  type="text"
+                  value={nuevaOT.direccion}
+                  onChange={(e) => setNuevaOT({...nuevaOT, direccion: e.target.value})}
+                  className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Calle XX # XX-XX"
+                />
               </div>
             </div>
 
-            {/* Lista - Columna Derecha */}
-            <div className="lg:col-span-2">
-              {/* Estadísticas */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-300 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-orange-700">{pendientes.length}</div>
-                  <div className="text-sm text-orange-600 font-medium">Total Pendientes</div>
-                </div>
-                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-300 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-yellow-700">
-                    {pendientes.filter(p => p.intentos >= 3).length}
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Observaciones
+              </label>
+              <textarea
+                value={nuevaOT.observaciones}
+                onChange={(e) => setNuevaOT({...nuevaOT, observaciones: e.target.value})}
+                className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none"
+                rows="2"
+                placeholder="Notas sobre por qué está pendiente..."
+              />
+            </div>
+
+            <div className="flex gap-3 mt-4">
+              {editando ? (
+                <>
+                  <button
+                    onClick={actualizarPendiente}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                  >
+                    ✅ Actualizar
+                  </button>
+                  <button
+                    onClick={limpiarFormulario}
+                    className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                  >
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={agregarPendiente}
+                  className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                >
+                  ➕ Agregar a Pendientes
+                </button>
+              )}
+            </div>
+
+            <div className="mt-3 bg-blue-100 border-l-4 border-blue-500 p-3 rounded">
+              <p className="text-xs text-blue-800 font-semibold">
+                💡 Al agregar, se creará automáticamente en Productividad con estado "Pendiente". Al marcar como "Agendada", se actualizará el estado sin crear duplicados.
+              </p>
+            </div>
+          </div>
+
+          {/* Estadísticas y Lista */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Estadísticas */}
+            <div className="lg:col-span-3">
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg p-4 border-2 border-orange-400">
+                  <div className="text-xs text-orange-700 font-semibold mb-1">TOTAL PENDIENTES</div>
+                  <div className="text-3xl font-bold text-orange-700">
+                    {pendientes.length}
                   </div>
-                  <div className="text-sm text-yellow-600 font-medium">3+ Intentos</div>
+                  <div className="text-sm text-orange-600 font-medium">En espera</div>
                 </div>
-                <div className="bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-300 rounded-lg p-4 text-center">
+
+                <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-lg p-4 border-2 border-red-400">
+                  <div className="text-xs text-red-700 font-semibold mb-1">URGENTES</div>
                   <div className="text-3xl font-bold text-red-700">
                     {urgentCount}
                   </div>
@@ -366,10 +465,10 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
               </div>
 
               {/* Filtros */}
-              <div className="flex gap-2 mb-4 flex-wrap">
+              <div className="mt-4 space-y-2">
                 <button
                   onClick={() => setFiltro('todas')}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                  className={`w-full px-4 py-2 rounded-lg font-medium transition ${
                     filtro === 'todas'
                       ? 'bg-orange-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -379,7 +478,7 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
                 </button>
                 <button
                   onClick={() => setFiltro('hoy')}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                  className={`w-full px-4 py-2 rounded-lg font-medium transition ${
                     filtro === 'hoy'
                       ? 'bg-orange-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -389,7 +488,7 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
                 </button>
                 <button
                   onClick={() => setFiltro('ayer')}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                  className={`w-full px-4 py-2 rounded-lg font-medium transition ${
                     filtro === 'ayer'
                       ? 'bg-orange-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -399,7 +498,7 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
                 </button>
                 <button
                   onClick={() => setFiltro('semana')}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                  className={`w-full px-4 py-2 rounded-lg font-medium transition ${
                     filtro === 'semana'
                       ? 'bg-orange-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -408,8 +507,10 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
                   📊 Semana
                 </button>
               </div>
+            </div>
 
-              {/* Lista de OTs */}
+            {/* Lista */}
+            <div className="lg:col-span-9">
               {pendientesFiltrados.length === 0 ? (
                 <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
                   <Clock className="w-16 h-16 mx-auto text-gray-400 mb-4" />
@@ -426,7 +527,6 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
               ) : (
                 <div className="space-y-3">
                   {pendientesFiltrados.map(ot => {
-                    // Calcular urgencia fuera del render usando el ahora capturado
                     const dias = Math.floor((ahora - new Date(ot.fechaCreacion)) / 86400000);
                     const urgente = dias >= 2;
                     const muchoIntentos = ot.intentos >= 3;
@@ -444,7 +544,7 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
                       >
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <h4 className="text-lg font-bold text-gray-800">
                                 OT {ot.numeroOT}
                               </h4>
@@ -456,6 +556,12 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
                               {muchoIntentos && (
                                 <span className="bg-yellow-600 text-white text-xs px-2 py-1 rounded-full font-bold">
                                   {ot.intentos} intentos
+                                </span>
+                              )}
+                              {ot.lider && (
+                                <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
+                                  <UserCheck className="w-3 h-3" />
+                                  {ot.lider}
                                 </span>
                               )}
                             </div>
@@ -541,14 +647,15 @@ const OTsPendientes = ({ onClose, onOTAgendada }) => {
 
           {/* Instrucciones */}
           <div className="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-            <h4 className="font-semibold text-blue-800 mb-2">💡 Cómo usar:</h4>
+            <h4 className="font-semibold text-blue-800 mb-2">💡 Cómo funciona ahora:</h4>
             <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-              <li>Agrega OTs cuando el cliente no conteste</li>
+              <li>Al agregar OT pendiente → Se crea automáticamente en Productividad con estado "Pendiente"</li>
+              <li>La OT se MANTIENE en pendientes hasta que la marques como "Agendada"</li>
               <li>Registra cada intento de llamada con el botón "Intentó"</li>
-              <li>Cuando logres agendar, marca como "Agendada"</li>
-              <li>La OT se quitará automáticamente de esta lista</li>
-              <li>Puedes agendar con correo o Registro Rápido - se quita igual</li>
+              <li>Cuando logres agendar, marca como "Agendada" → Se ACTUALIZA en productividad (NO crea duplicado)</li>
+              <li>Al marcar "Agendada", se quita de esta lista automáticamente</li>
               <li>Las OTs urgentes (2+ días) se marcan en rojo</li>
+              <li>Usa el campo "Líder" para asignar responsable y mejor seguimiento</li>
             </ol>
           </div>
         </div>
