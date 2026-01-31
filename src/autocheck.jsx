@@ -15,7 +15,7 @@ const Autocheck = () => {
   
   const [ciudadesAutocheck, setCiudadesAutocheck] = useState(() => {
     const saved = localStorage.getItem('autocheck-ciudades');
-    const ciudades = saved ? JSON.parse(saved) : ['BOGOTÁ', 'MEDELLÍN', 'CALI', 'BARRANQUILLA', 'CARTAGENA'];
+    const ciudades = saved ? JSON.parse(saved) : ['BOGOTA', 'MEDELLIN', 'CALI', 'BARRANQUILLA', 'CARTAGENA'];
     return ciudades.sort();
   });
 
@@ -115,7 +115,14 @@ const Autocheck = () => {
       return;
     }
     const fechaFormateada = formatearFechaParaMostrar(fecha);
-    const confirmacion = `CONFIRMACION CITA  ENTREGAS    N1: ${n1_nombre}   CELULAR ${n1_cel}  N2: ${lider}  CELULAR: ${lider_cel}  N3 ${n3_nombre}  CELULAR: ${n3_cel}  N4: ${n4_nombre}  CELULAR: ${n4_cel}  Dirección confirmada por el cliente: // ${ciudad} //  ${direccion} //  Fecha y hora de la actividad confirmada:  ${fechaFormateada} ${hora_inicio} a las ${hora_fin} X ${duracion} HRAS
+    const confirmacion = `CONFIRMACION CITA  ENTREGAS
+
+N1: ${n1_nombre}   CELULAR: ${n1_cel}  
+N2: ${lider}  CELULAR: ${lider_cel}  
+N3: ${n3_nombre}  CELULAR: ${n3_cel}  
+N4: ${n4_nombre}  CELULAR: ${n4_cel}
+    
+Dirección confirmada por el cliente: // ${ciudad} //  ${direccion} //  Fecha y hora de la actividad confirmada:  ${fechaFormateada} ${hora_inicio} a las ${hora_fin} X ${duracion} HRAS
  
 Contacto en sitio confirmado: Pdte por confirmar     Disponibilidad: Agenda  _X_Cliente __    Correo :  ${correo}   Cualquier inconveniente con acceso al sitio, por favor contactar  a los celulares ${cel_contacto}  
  

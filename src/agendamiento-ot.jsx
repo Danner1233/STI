@@ -32,7 +32,49 @@ import {
   Search,
   BookOpen,
   FileSpreadsheet,
+  Bell,
+  ChevronDown,
 } from "lucide-react";
+
+// Logo SVG Component
+const LogoEmpresa = ({ imageUrl }) => (
+  <svg
+    width="50"
+    height="50"
+    viewBox="0 0 100 100"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Definimos el recorte circular */}
+    <defs>
+      <clipPath id="circleClip">
+        <circle cx="50" cy="50" r="45" />
+      </clipPath>
+    </defs>
+
+    {/* Círculo de fondo */}
+    <circle
+      cx="50"
+      cy="50"
+      r="48"
+      fill="#1E40AF"
+      stroke="#F97316"
+      strokeWidth="2"
+    />
+
+    {/* Imagen dentro del círculo */}
+    {imageUrl && (
+      <image
+        href={imageUrl}
+        x="5"
+        y="5"
+        width="90"
+        height="90"
+        clipPath="url(#circleClip)"
+        preserveAspectRatio="xMidYMid slice"
+      />
+    )}
+  </svg>
+);
 
 const AgendamientoOT = () => {
   // ========== ESTADOS ==========
@@ -48,9 +90,9 @@ const AgendamientoOT = () => {
     telefono: "",
     tipoServicio: "ENTREGA DE SERVICIO",
     servicioPDT: "",
-    generarPDT: null, // null = no decidido, true = necesita, false = no necesita
-    pdtSubido: false, // ← NUEVO: Confirmación de que subió el PDT
-    confirmoNoPDT: false, // ← NUEVO: Confirmación de que NO necesita PDT
+    generarPDT: null,
+    pdtSubido: false,
+    confirmoNoPDT: false,
     observaciones: "",
     duracion: "4-8 horas",
     consensus: false,
@@ -95,7 +137,7 @@ const AgendamientoOT = () => {
   const [mostrarSelectorMultiple, setMostrarSelectorMultiple] = useState(false);
   const [mostrarConfigZoho, setMostrarConfigZoho] = useState(false);
   const [mostrarPendientes, setMostrarPendientes] = useState(false);
-  const [forceUpdatePendientes, setForceUpdatePendientes] = useState(0); // ← Para forzar actualización
+  const [forceUpdatePendientes, setForceUpdatePendientes] = useState(0);
   const [mostrarMenu, setMostrarMenu] = useState(false);
   const [mostrarZonificador, setMostrarZonificador] = useState(false);
   const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
@@ -103,7 +145,7 @@ const AgendamientoOT = () => {
   const [mostrarGestionPDT, setMostrarGestionPDT] = useState(false);
 
   const [archivoZip, setArchivoZip] = useState(null);
-  const fileInputRef = useRef(null); // ← REF para resetear input file
+  const fileInputRef = useRef(null);
   const [copied, setCopied] = useState(false);
   const [registrado, setRegistrado] = useState(false);
 
@@ -137,11 +179,9 @@ const AgendamientoOT = () => {
 
   useEffect(() => {
     try {
-      // 🔥 LIMITAR A ÚLTIMOS 500 REGISTROS para no llenar localStorage
       const registrosLimitados = productividad.slice(0, 500);
       localStorage.setItem("productividad-ot", JSON.stringify(registrosLimitados));
       
-      // Si teníamos más de 500, avisar
       if (productividad.length > 500) {
         console.warn(`⚠️ Productividad tiene ${productividad.length} registros. Solo se guardan los últimos 500.`);
       }
@@ -149,7 +189,6 @@ const AgendamientoOT = () => {
       if (error.name === 'QuotaExceededError') {
         console.error('❌ LocalStorage lleno. Limpiando registros antiguos...');
         
-        // LIMPIEZA DE EMERGENCIA: Solo los últimos 100 registros
         try {
           const registrosEmergencia = productividad.slice(0, 100);
           localStorage.setItem("productividad-ot", JSON.stringify(registrosEmergencia));
@@ -529,7 +568,6 @@ ${parafiscalesMensuales.tecnicos
       });
   };
 
-  // 📥 FUNCIÓN PARA DESCARGAR PLANTILLA PDT MANUALMENTE
   const descargarPlantillaPDTManual = async (servicioPDT) => {
     try {
       if (!servicioPDT) {
@@ -582,7 +620,6 @@ ${parafiscalesMensuales.tecnicos
     }
   };
 
-  // Hacer la función accesible globalmente para el formulario
   React.useEffect(() => {
     window.descargarPlantillaPDTManual = descargarPlantillaPDTManual;
     return () => {
@@ -591,7 +628,6 @@ ${parafiscalesMensuales.tecnicos
   }, [formData.numeroOT, formData.cliente, formData.ciudad, formData.direccion]);
 
   const enviarCorreoZoho = async () => {
-    // ⚠️ VALIDACIÓN OBLIGATORIA DE PDT
     if (formData.generarPDT === null || formData.generarPDT === undefined || formData.generarPDT === '') {
       alert(
         "🚨 VALIDACIÓN REQUERIDA 🚨\n\n" +
@@ -605,7 +641,6 @@ ${parafiscalesMensuales.tecnicos
       return;
     }
 
-    // Si dijo SÍ pero no seleccionó servicio
     if (formData.generarPDT === true && !formData.servicioPDT) {
       alert(
         "⚠️ FALTA SELECCIONAR SERVICIO ⚠️\n\n" +
@@ -617,36 +652,6 @@ ${parafiscalesMensuales.tecnicos
       return;
     }
 
-    // 🚨 VALIDACIONES ESTRICTAS DE PDT
-    if (formData.generarPDT === null || formData.generarPDT === undefined || formData.generarPDT === '') {
-      alert(
-        "🚨 VALIDACIÓN REQUERIDA - PDT 🚨\n\n" +
-        "Debes indicar si esta OT necesita o NO un PDT.\n\n" +
-        "Por favor:\n" +
-        "1. Revisa la sección 'PDT - Plan Técnico de Despliegue'\n" +
-        "2. Haz click en 'SÍ, necesita PDT' o 'NO necesita PDT'\n" +
-        "3. Intenta enviar el correo de nuevo\n\n" +
-        "⚠️ Esta validación es OBLIGATORIA."
-      );
-      return;
-    }
-
-    // Si necesita PDT pero no seleccionó servicio
-    if (formData.generarPDT === true && !formData.servicioPDT) {
-      alert(
-        "⚠️ FALTA SELECCIONAR SERVICIO PDT ⚠️\n\n" +
-        "Marcaste que SÍ necesita PDT, pero no has seleccionado el tipo de servicio.\n\n" +
-        "Por favor:\n" +
-        "1. Selecciona el tipo de servicio en el dropdown\n" +
-        "2. Descarga la plantilla PDT\n" +
-        "3. Llénala y adjúntala al correo\n" +
-        "4. Marca el checkbox de confirmación\n" +
-        "5. Intenta enviar el correo de nuevo"
-      );
-      return;
-    }
-
-    // Si necesita PDT pero NO confirmó que lo subió
     if (formData.generarPDT === true && formData.servicioPDT && !formData.pdtSubido) {
       const confirmacionPDT = window.confirm(
         "🚨 VALIDACIÓN CRÍTICA - PDT 🚨\n\n" +
@@ -678,7 +683,6 @@ ${parafiscalesMensuales.tecnicos
         return;
       }
 
-      // Segunda confirmación más severa
       const segundaConfirmacionPDT = window.confirm(
         "🚨🚨🚨 ÚLTIMA ADVERTENCIA - PDT 🚨🚨🚨\n\n" +
         "Estás a punto de enviar una OT que REQUIERE PDT sin adjuntarlo.\n\n" +
@@ -699,7 +703,6 @@ ${parafiscalesMensuales.tecnicos
       );
     }
 
-    // Si NO necesita PDT pero no confirmó
     if (formData.generarPDT === false && !formData.confirmoNoPDT) {
       alert(
         "⚠️ CONFIRMACIÓN REQUERIDA ⚠️\n\n" +
@@ -800,17 +803,15 @@ ${parafiscalesMensuales.tecnicos
   };
 
   const registrarEnvio = async () => {
-    // 🔍 VERIFICAR SI YA EXISTE EN PRODUCTIVIDAD (desde pendientes)
     const otExistente = productividad.find(ot => ot.numeroOT === formData.numeroOT);
     
     if (otExistente) {
-      // ✅ ACTUALIZAR REGISTRO EXISTENTE (no crear duplicado)
       setProductividad((prev) => 
         prev.map((ot) => 
           ot.numeroOT === formData.numeroOT 
             ? {
                 ...ot,
-                ...formData, // Actualizar con nuevos datos
+                ...formData,
                 fechaEnvio: new Date().toISOString(),
                 estado: "Enviado",
                 observaciones: formData.observaciones || ot.observaciones,
@@ -821,7 +822,6 @@ ${parafiscalesMensuales.tecnicos
       );
       console.log(`✅ OT ${formData.numeroOT} ACTUALIZADA de "Pendiente" a "Enviado" (sin duplicar)`);
     } else {
-      // ✅ CREAR NUEVO REGISTRO (OT no existía antes)
       const nuevo = {
         id: Date.now(),
         ...formData,
@@ -836,30 +836,23 @@ ${parafiscalesMensuales.tecnicos
     setRegistrado(true);
     setTimeout(() => setRegistrado(false), 2000);
 
-    // Quitar de pendientes si existe
     const pendientes = JSON.parse(localStorage.getItem("ots-pendientes") || "[]");
     const nuevosPendientes = pendientes.filter((p) => p.numeroOT !== formData.numeroOT);
     if (nuevosPendientes.length !== pendientes.length) {
       localStorage.setItem("ots-pendientes", JSON.stringify(nuevosPendientes));
       console.log(`✅ OT ${formData.numeroOT} quitada de pendientes automáticamente`);
       
-      // 🆕 FORZAR ACTUALIZACIÓN del componente OTsPendientes
       setForceUpdatePendientes(prev => {
         const newValue = prev + 1;
         console.log(`🔄 Force update pendientes: ${prev} → ${newValue}`);
         return newValue;
       });
       
-      // Alert temporal para debug
       setTimeout(() => {
         alert(`✅ OT ${formData.numeroOT} quitada de pendientes y productividad actualizada`);
       }, 100);
     }
 
-    // 🗑️ DESCARGA AUTOMÁTICA DE PDT ELIMINADA
-    // El usuario descarga manualmente cuando quiera usando el botón en el formulario
-
-    // Limpiar formulario
     setFormData({
       numeroOT: "",
       cliente: "",
@@ -883,19 +876,15 @@ ${parafiscalesMensuales.tecnicos
     });
     setArchivoZip(null);
     
-    // 🆕 RESETEAR INPUT FILE para permitir seleccionar archivos de nuevo
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // ========== REGISTRO RÁPIDO ==========
   const registrarRapido = async (datosRapidos) => {
-    // 🔍 VERIFICAR SI YA EXISTE EN PRODUCTIVIDAD (desde pendientes)
     const otExistente = productividad.find(ot => ot.numeroOT === datosRapidos.numeroOT);
     
     if (otExistente) {
-      // ✅ ACTUALIZAR REGISTRO EXISTENTE (no crear duplicado)
       setProductividad((prev) => 
         prev.map((ot) => 
           ot.numeroOT === datosRapidos.numeroOT 
@@ -918,7 +907,6 @@ ${parafiscalesMensuales.tecnicos
       );
       console.log(`✅ OT ${datosRapidos.numeroOT} ACTUALIZADA de "Pendiente" a "Enviado" (Registro Rápido - sin duplicar)`);
     } else {
-      // ✅ CREAR NUEVO REGISTRO (OT no existía antes)
       const nuevoRegistro = {
         id: Date.now(),
         numeroOT: datosRapidos.numeroOT,
@@ -952,21 +940,16 @@ ${parafiscalesMensuales.tecnicos
       localStorage.setItem("ots-pendientes", JSON.stringify(nuevosPendientes));
       console.log(`✅ OT ${datosRapidos.numeroOT} quitada de pendientes automáticamente (Registro Rápido)`);
       
-      // 🆕 FORZAR ACTUALIZACIÓN del componente OTsPendientes
       setForceUpdatePendientes(prev => {
         const newValue = prev + 1;
         console.log(`🔄 Force update pendientes (Registro Rápido): ${prev} → ${newValue}`);
         return newValue;
       });
       
-      // Alert temporal para debug
       setTimeout(() => {
         alert(`✅ OT ${datosRapidos.numeroOT} quitada de pendientes y productividad actualizada`);
       }, 100);
     }
-
-    // 🗑️ DESCARGA AUTOMÁTICA DE PDT ELIMINADA
-    // El usuario descarga manualmente cuando quiera usando el botón en el formulario
   };
 
   const actualizarEstadoOT = (id, nuevoEstado) => {
@@ -977,7 +960,6 @@ ${parafiscalesMensuales.tecnicos
     setProductividad((prev) => prev.map((ot) => (ot.id === id ? { ...ot, rr: nuevoRR } : ot)));
   };
 
-  // 🗑️ BORRAR TODAS LAS OTs DE PRODUCTIVIDAD
   const borrarTodasLasOTs = () => {
     const totalRegistros = productividad.length;
     
@@ -995,7 +977,6 @@ ${parafiscalesMensuales.tecnicos
       `• Se recomienda exportar a Excel primero\n\n` +
       `¿Estás SEGURO de que quieres borrar todo?`
     )) {
-      // Doble confirmación
       if (confirm(
         `⚠️ ÚLTIMA CONFIRMACIÓN ⚠️\n\n` +
         `Vas a eliminar ${totalRegistros} registros.\n\n` +
@@ -1008,7 +989,6 @@ ${parafiscalesMensuales.tecnicos
     }
   };
 
-  // 🆕 ACTUALIZAR OBSERVACIONES Y FECHA
   const actualizarObservaciones = (id, nuevasObservaciones) => {
     const ahora = new Date().toISOString();
     setProductividad((prev) => 
@@ -1017,8 +997,8 @@ ${parafiscalesMensuales.tecnicos
           ? { 
               ...ot, 
               observaciones: nuevasObservaciones,
-              fechaEnvio: ahora, // ← Actualizar a HOY
-              actualizadoRecientemente: true // ← Marcar como actualizado
+              fechaEnvio: ahora,
+              actualizadoRecientemente: true
             } 
           : ot
       )
@@ -1073,20 +1053,16 @@ ${parafiscalesMensuales.tecnicos
     alert("📝 Formulario llenado con datos de la OT.\n\nCompleta los campos restantes (fecha, hora, correo destino) y envía el correo.");
   };
 
-  // 🆕 REGISTRAR OT PENDIENTE EN PRODUCTIVIDAD
   const handleRegistrarPendienteEnProductividad = (registroProductividad) => {
     setProductividad((prev) => [registroProductividad, ...prev]);
     console.log(`✅ OT ${registroProductividad.numeroOT} registrada en productividad con estado "Pendiente"`);
   };
 
-  // 🆕 ACTUALIZAR OT EN PRODUCTIVIDAD (sin crear duplicado)
   const handleActualizarProductividad = (id, cambios, eliminar = false) => {
     if (eliminar) {
-      // Eliminar de productividad
       setProductividad((prev) => prev.filter((ot) => ot.id !== id));
       console.log(`✅ OT eliminada de productividad (ID: ${id})`);
     } else {
-      // Actualizar campos
       setProductividad((prev) =>
         prev.map((ot) =>
           ot.id === id ? { ...ot, ...cambios } : ot
@@ -1110,150 +1086,225 @@ ${parafiscalesMensuales.tecnicos
   };
 
   const stats = calcularEstadisticas();
+  const pendientesCount = JSON.parse(localStorage.getItem("ots-pendientes") || "[]").length;
 
   // ========== RENDER ==========
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg mb-6 sticky top-0 z-40">
-          <div className="p-6 md:p-8">
-            <div className="flex justify-between items-center">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl md:text-3xl font-bold text-gray-800 mb-1 truncate">
-                  🚀 Generador de Correos - Agendamiento OT
-                </h1>
-                <p className="text-xs md:text-sm text-gray-600 hidden sm:block">Herramienta para automatizar correos de agendamiento</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-orange-50">
+      {/* Header Profesional con Gradiente Corporativo */}
+      <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-orange-600 shadow-2xl sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="px-4 py-4 md:px-6 md:py-5">
+            <div className="flex items-center justify-between gap-4">
+              {/* Logo y Título */}
+              <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                <div className="flex-shrink-0">
+                  <LogoEmpresa />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-white truncate">
+                    Sistema de Agendamiento OT
+                  </h1>
+                  <p className="text-xs md:text-sm text-blue-100 hidden sm:block mt-0.5">
+                    Gestión profesional de órdenes de trabajo
+                  </p>
+                </div>
               </div>
 
-              {/* Botones Desktop */}
-              <div className="hidden lg:flex gap-2 xl:gap-3 flex-shrink-0">
-                <button onClick={() => setMostrarBusqueda(true)} className="bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm" title="Búsqueda Rápida (Ctrl+K)">
-                  <Search size={18} />
-                  <span className="hidden xl:inline">Buscar</span>
-                  <kbd className="hidden xl:inline-block ml-1 px-1.5 py-0.5 text-xs bg-gray-600 rounded">Ctrl+K</kbd>
-                </button>
-
-                <button onClick={() => setMostrarConfigZoho(!mostrarConfigZoho)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm" title="Configuración Zoho">
-                  <Settings size={18} />
-                  <span className="hidden xl:inline">Config</span>
-                </button>
-
-                <button onClick={() => setMostrarGestionPDT(!mostrarGestionPDT)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg flex items-center gap-2 transition text-sm" title="Gestión de PDTs">
-                  <FileSpreadsheet size={18} />
-                  <span className="hidden xl:inline">PDTs</span>
-                </button>
-
-                <button onClick={() => setMostrarHistorial(!mostrarHistorial)} className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm" title="Historial de OTs">
-                  📜 <span className="hidden xl:inline">Historial</span>
-                </button>
-
-                <button onClick={() => setMostrarAutocheck(!mostrarAutocheck)} className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm" title="Autocheck">
-                  ✅ <span className="hidden xl:inline">Autocheck</span>
-                </button>
-
-                <button onClick={() => setMostrarParafiscalesMensuales(!mostrarParafiscalesMensuales)} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm" title="Parafiscales">
-                  📋 <span className="hidden xl:inline">Parafiscales</span>
-                </button>
-
-                <button onClick={() => setMostrarGestionContactos(!mostrarGestionContactos)} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm" title="Gestión de Contactos">
-                  📧 <span className="hidden xl:inline">Contactos</span>
-                </button>
-
-                <button onClick={() => setMostrarZonificador(!mostrarZonificador)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2" title="Zonificador Nacional">
-                  <Map size={18} />
-                  <span className="hidden xl:inline">Zonas</span>
-                </button>
-
-                <button 
-                  onClick={borrarTodasLasOTs} 
-                  className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2" 
-                  title="Borrar TODA la productividad"
+              {/* Notificaciones (Desktop) */}
+              <div className="hidden lg:flex items-center gap-3">
+                {pendientesCount > 0 && (
+                  <button
+                    onClick={() => setMostrarPendientes(true)}
+                    className="relative bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                  >
+                    <Bell size={18} className="animate-pulse" />
+                    <span className="font-semibold">{pendientesCount}</span>
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
+                      !
+                    </span>
+                  </button>
+                )}
+                
+                {/* Botón de Búsqueda */}
+                <button
+                  onClick={() => setMostrarBusqueda(true)}
+                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 backdrop-blur-sm"
                 >
-                  🗑️ <span className="hidden xl:inline">Borrar Todo</span>
+                  <Search size={18} />
+                  <kbd className="hidden xl:inline-block px-2 py-0.5 text-xs bg-white/20 rounded">
+                    Ctrl+K
+                  </kbd>
                 </button>
 
-                <button onClick={() => setMostrarGuiaEscalamiento(!mostrarGuiaEscalamiento)} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition text-sm flex items-center gap-2" title="Guía de Escalamiento">
-                  <BookOpen size={18} />
-                  <span className="hidden xl:inline">Escalar</span>
-                </button>
-
-                <button onClick={() => setMostrarPendientes(!mostrarPendientes)} className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-2 px-3 xl:px-4 rounded-lg transition shadow-lg flex items-center gap-2 text-sm" title="OTs Pendientes">
-                  <Clock size={18} />
-                  <span className="hidden xl:inline">Pendientes</span>
-                  {(() => {
-                    const count = JSON.parse(localStorage.getItem("ots-pendientes") || "[]").length;
-                    return count > 0 ? <span className="bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-bold">{count}</span> : null;
-                  })()}
-                </button>
+                {/* Menú Dropdown (Desktop) */}
+                <div className="relative group">
+                  <button className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 backdrop-blur-sm">
+                    <Settings size={18} />
+                    <span className="hidden xl:inline">Herramientas</span>
+                    <ChevronDown size={16} />
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <div className="py-2">
+                      <button
+                        onClick={() => setMostrarConfigZoho(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <Settings size={16} className="text-blue-600" />
+                        <span>Configuración Zoho</span>
+                      </button>
+                      <button
+                        onClick={() => setMostrarGestionPDT(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <FileSpreadsheet size={16} className="text-emerald-600" />
+                        <span>Gestión PDTs</span>
+                      </button>
+                      <button
+                        onClick={() => setMostrarHistorial(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <span className="text-lg">📜</span>
+                        <span>Historial</span>
+                      </button>
+                      <button
+                        onClick={() => setMostrarAutocheck(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <span className="text-lg">✅</span>
+                        <span>Autocheck</span>
+                      </button>
+                      <button
+                        onClick={() => setMostrarParafiscalesMensuales(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <span className="text-lg">📋</span>
+                        <span>Parafiscales</span>
+                      </button>
+                      <button
+                        onClick={() => setMostrarGestionContactos(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <span className="text-lg">📧</span>
+                        <span>Contactos</span>
+                      </button>
+                      <button
+                        onClick={() => setMostrarZonificador(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <Map size={16} className="text-blue-600" />
+                        <span>Zonificador</span>
+                      </button>
+                      <button
+                        onClick={() => setMostrarGuiaEscalamiento(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <BookOpen size={16} className="text-purple-600" />
+                        <span>Guía Escalamiento</span>
+                      </button>
+                      <div className="border-t border-gray-200 my-2"></div>
+                      <button
+                        onClick={borrarTodasLasOTs}
+                        className="w-full text-left px-4 py-2 hover:bg-red-50 flex items-center gap-3 text-red-600"
+                      >
+                        <span className="text-lg">🗑️</span>
+                        <span>Borrar Todo</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Botón Menú Móvil */}
-              <button onClick={() => setMostrarMenu(!mostrarMenu)} className="lg:hidden ml-4 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition" aria-label="Menú">
-                {mostrarMenu ? <X size={24} /> : <Menu size={24} />}
+              <button
+                onClick={() => setMostrarMenu(!mostrarMenu)}
+                className="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 transition backdrop-blur-sm"
+              >
+                {mostrarMenu ? <X size={24} className="text-white" /> : <Menu size={24} className="text-white" />}
               </button>
             </div>
           </div>
 
-          {/* Menú Móvil */}
+          {/* Menú Móvil Expandible */}
           {mostrarMenu && (
-            <div className="lg:hidden border-t border-gray-200 bg-gray-50">
-              <div className="p-4 space-y-2">
-                <button onClick={() => { setMostrarBusqueda(true); setMostrarMenu(false); }} className="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+            <div className="lg:hidden border-t border-white/20 bg-gradient-to-b from-blue-800 to-blue-900">
+              <div className="px-4 py-4 space-y-2 max-h-[70vh] overflow-y-auto">
+                {pendientesCount > 0 && (
+                  <button
+                    onClick={() => { setMostrarPendientes(true); setMostrarMenu(false); }}
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-between transition shadow-lg"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Bell size={20} />
+                      OTs Pendientes
+                    </span>
+                    <span className="bg-white text-orange-600 rounded-full px-3 py-1 text-sm font-bold">
+                      {pendientesCount}
+                    </span>
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => { setMostrarBusqueda(true); setMostrarMenu(false); }}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
                   <Search size={20} />
                   Búsqueda Rápida
-                  <kbd className="ml-auto px-2 py-1 text-xs bg-gray-600 rounded">Ctrl+K</kbd>
                 </button>
 
-                <button onClick={() => { setMostrarConfigZoho(!mostrarConfigZoho); setMostrarMenu(false); }} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+                <div className="h-px bg-white/20 my-2"></div>
+
+                <button onClick={() => { setMostrarConfigZoho(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
                   <Settings size={20} />
                   Configuración Zoho
                 </button>
 
-                <button onClick={() => { setMostrarGestionPDT(!mostrarGestionPDT); setMostrarMenu(false); }} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+                <button onClick={() => { setMostrarGestionPDT(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
                   <FileSpreadsheet size={20} />
-                  Gestión de PDTs
+                  Gestión PDTs
                 </button>
 
-                <button onClick={() => { setMostrarHistorial(!mostrarHistorial); setMostrarMenu(false); }} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+                <button onClick={() => { setMostrarHistorial(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
                   📜 Historial
                 </button>
 
-                <button onClick={() => { setMostrarAutocheck(!mostrarAutocheck); setMostrarMenu(false); }} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+                <button onClick={() => { setMostrarAutocheck(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
                   ✅ Autocheck
                 </button>
 
-                <button onClick={() => { setMostrarParafiscalesMensuales(!mostrarParafiscalesMensuales); setMostrarMenu(false); }} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+                <button onClick={() => { setMostrarParafiscalesMensuales(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
                   📋 Parafiscales
                 </button>
 
-                <button onClick={() => { setMostrarGestionContactos(!mostrarGestionContactos); setMostrarMenu(false); }} className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+                <button onClick={() => { setMostrarGestionContactos(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
                   📧 Contactos
                 </button>
 
-                <button onClick={() => { setMostrarZonificador(!mostrarZonificador); setMostrarMenu(false); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+                <button onClick={() => { setMostrarZonificador(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
                   <Map size={20} />
-                  Zonificador Nacional
+                  Zonificador
                 </button>
 
-                <button onClick={() => { setMostrarGuiaEscalamiento(!mostrarGuiaEscalamiento); setMostrarMenu(false); }} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition">
+                <button onClick={() => { setMostrarGuiaEscalamiento(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
                   <BookOpen size={20} />
-                  Guía de Escalamiento
+                  Guía Escalamiento
                 </button>
 
-                <button onClick={() => { setMostrarPendientes(!mostrarPendientes); setMostrarMenu(false); }} className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition shadow-lg">
-                  <Clock size={20} />
-                  OTs Pendientes
-                  {(() => {
-                    const count = JSON.parse(localStorage.getItem("ots-pendientes") || "[]").length;
-                    return count > 0 ? <span className="ml-auto bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-bold">{count}</span> : null;
-                  })()}
+                <div className="h-px bg-white/20 my-2"></div>
+
+                <button onClick={() => { borrarTodasLasOTs(); setMostrarMenu(false); }} className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-200 font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm border border-red-400/30">
+                  🗑️ Borrar Productividad
                 </button>
               </div>
             </div>
           )}
         </div>
+      </div>
 
+      {/* Contenido Principal */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Modales */}
         {mostrarHistorial && (
           <FloatingModal isOpen={mostrarHistorial} onClose={() => setMostrarHistorial(false)} title="Historial de OTs" icon="📜" color="cyan">
@@ -1285,64 +1336,119 @@ ${parafiscalesMensuales.tecnicos
           </FloatingModal>
         )}
 
-        {/* Estadísticas */}
-        <Estadisticas hoyCount={stats.hoyCount} semanaCount={stats.semanaCount} mesCount={stats.mesCount} />
-
-        {/* Registro Rápido */}
-        <RegistroRapido onRegistrar={registrarRapido} />
-
-        {/* Formulario y Vista Previa */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Formulario
-            formData={formData}
-            onInputChange={handleInputChange}
-            inputCC={inputCC}
-            onInputCCChange={handleInputCCChange}
-            onKeyDownCC={handleKeyDownCC}
-            sugerenciasCC={sugerenciasCC}
-            onAgregarCC={agregarCC}
-            onEliminarCC={eliminarCC}
-            onMostrarSelectorMultiple={() => setMostrarSelectorMultiple(true)}
-            archivoZip={archivoZip}
-            onArchivoZipChange={handleArchivoZip}
-            fileInputRef={fileInputRef}
-            onEliminarArchivo={() => {
-              setArchivoZip(null);
-              if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-              }
-            }}
-            onCopiarCorreo={copiarCorreo}
-            onEnviarCorreo={enviarCorreoZoho}
-            copied={copied}
-            registrado={registrado}
-          />
-
-          <div className="space-y-6">
-            <VistaPrevia asunto={generarAsunto()} cuerpo={generarCuerpo()} />
-            <Productividad 
-              productividad={productividad} 
-              onActualizarEstado={actualizarEstadoOT} 
-              onActualizarRR={actualizarRR} 
-              onActualizarObservaciones={actualizarObservaciones}
-              onEliminarOT={eliminarOT} 
-            />
+        {/* Estadísticas con diseño corporativo */}
+        <div className="mb-6">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-blue-100">
+            <div className="bg-gradient-to-r from-blue-600 to-orange-500 px-6 py-3">
+              <h2 className="text-white font-bold text-lg">Estadísticas de Productividad</h2>
+            </div>
+            <div className="p-6">
+              <Estadisticas hoyCount={stats.hoyCount} semanaCount={stats.semanaCount} mesCount={stats.mesCount} />
+            </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 bg-white rounded-lg shadow p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              💡 Los datos se guardan automáticamente en tu navegador
-            </p>
-            <div className="text-xs text-gray-500">
-              📊 Registros en productividad: <span className="font-bold text-blue-600">{productividad.length}</span>
-              {productividad.length > 400 && (
-                <span className="ml-2 text-orange-600 font-semibold">
-                  ⚠️ Considera limpiar registros antiguos
-                </span>
-              )}
+        {/* Registro Rápido */}
+        <div className="mb-6">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-orange-100">
+            <div className="bg-gradient-to-r from-orange-500 to-blue-600 px-6 py-3">
+              <h2 className="text-white font-bold text-lg">⚡ Registro Rápido</h2>
+            </div>
+            <div className="p-6">
+              <RegistroRapido onRegistrar={registrarRapido} />
+            </div>
+          </div>
+        </div>
+
+        {/* Formulario y Vista Previa */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-blue-100">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3">
+              <h2 className="text-white font-bold text-lg">📝 Formulario de OT</h2>
+            </div>
+            <div className="p-6">
+              <Formulario
+                formData={formData}
+                onInputChange={handleInputChange}
+                inputCC={inputCC}
+                onInputCCChange={handleInputCCChange}
+                onKeyDownCC={handleKeyDownCC}
+                sugerenciasCC={sugerenciasCC}
+                onAgregarCC={agregarCC}
+                onEliminarCC={eliminarCC}
+                onMostrarSelectorMultiple={() => setMostrarSelectorMultiple(true)}
+                archivoZip={archivoZip}
+                onArchivoZipChange={handleArchivoZip}
+                fileInputRef={fileInputRef}
+                onEliminarArchivo={() => {
+                  setArchivoZip(null);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
+                }}
+                onCopiarCorreo={copiarCorreo}
+                onEnviarCorreo={enviarCorreoZoho}
+                copied={copied}
+                registrado={registrado}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-orange-100">
+              <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-3">
+                <h2 className="text-white font-bold text-lg">👁️ Vista Previa</h2>
+              </div>
+              <div className="p-6">
+                <VistaPrevia asunto={generarAsunto()} cuerpo={generarCuerpo()} />
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-blue-100">
+              <div className="bg-gradient-to-r from-blue-700 to-blue-800 px-6 py-3">
+                <h2 className="text-white font-bold text-lg">📊 Productividad Reciente</h2>
+              </div>
+              <div className="p-6">
+                <Productividad 
+                  productividad={productividad} 
+                  onActualizarEstado={actualizarEstadoOT} 
+                  onActualizarRR={actualizarRR} 
+                  onActualizarObservaciones={actualizarObservaciones}
+                  onEliminarOT={eliminarOT} 
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Corporativo */}
+        <div className="mt-8 bg-gradient-to-r from-blue-900 to-orange-600 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-6 py-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8">
+                  <svg viewBox="0 0 100 100" fill="none">
+                    <circle cx="50" cy="50" r="48" fill="white" fillOpacity="0.2"/>
+                    <path d="M 35 30 Q 50 25 65 30 Q 70 35 65 40 Q 50 45 50 50 Q 50 55 65 60 Q 70 65 65 70 Q 50 75 35 70" 
+                          stroke="white" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Sistema de Agendamiento OT</p>
+                  <p className="text-xs opacity-80">Gestión Profesional de Órdenes de Trabajo</p>
+                </div>
+              </div>
+              
+              <div className="text-center md:text-right">
+                <p className="text-sm font-semibold">
+                  📊 Registros: <span className="text-orange-300">{productividad.length}</span>
+                </p>
+                {productividad.length > 400 && (
+                  <p className="text-xs text-orange-200 mt-1">
+                    ⚠️ Considera exportar y limpiar datos antiguos
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
