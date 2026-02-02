@@ -21,6 +21,10 @@ import GuiaEscalamiento from "./components/GuiaEscalamiento";
 import GestionPDT from "./components/GestionPDT";
 import { SERVICIOS_PDT } from "./constants/serviciosPDT";
 import { generarPDT, obtenerPlantillaPDT } from "./utils/generadorPDT";
+// 🆕 NUEVOS COMPONENTES
+import Dashboard from "./components/Dashboard";
+import ReportesAutomaticos from "./components/ReportesAutomaticos";
+import PlantillasCorreo from "./components/PlantillasCorreo";
 
 // Iconos
 import {
@@ -34,6 +38,9 @@ import {
   FileSpreadsheet,
   Bell,
   ChevronDown,
+  BarChart3,
+  Mail,
+  FileText,
 } from "lucide-react";
 
 // Logo SVG Component
@@ -44,14 +51,11 @@ const LogoEmpresa = ({ imageUrl }) => (
     viewBox="0 0 100 100"
     xmlns="http://www.w3.org/2000/svg"
   >
-    {/* Definimos el recorte circular */}
     <defs>
       <clipPath id="circleClip">
         <circle cx="50" cy="50" r="45" />
       </clipPath>
     </defs>
-
-    {/* Círculo de fondo */}
     <circle
       cx="50"
       cy="50"
@@ -60,8 +64,6 @@ const LogoEmpresa = ({ imageUrl }) => (
       stroke="#F97316"
       strokeWidth="2"
     />
-
-    {/* Imagen dentro del círculo */}
     {imageUrl && (
       <image
         href={imageUrl}
@@ -143,6 +145,10 @@ const AgendamientoOT = () => {
   const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
   const [mostrarGuiaEscalamiento, setMostrarGuiaEscalamiento] = useState(false);
   const [mostrarGestionPDT, setMostrarGestionPDT] = useState(false);
+  // 🆕 NUEVOS ESTADOS
+  const [mostrarDashboard, setMostrarDashboard] = useState(false);
+  const [mostrarReportes, setMostrarReportes] = useState(false);
+  const [mostrarPlantillas, setMostrarPlantillas] = useState(false);
 
   const [archivoZip, setArchivoZip] = useState(null);
   const fileInputRef = useRef(null);
@@ -168,7 +174,7 @@ const AgendamientoOT = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // ========== EFFECTS ==========
+  // ========== EFFECTS ========== 
   useEffect(() => {
     localStorage.setItem("contactos-guardados", JSON.stringify(contactosGuardados));
   }, [contactosGuardados]);
@@ -177,7 +183,7 @@ const AgendamientoOT = () => {
     localStorage.setItem("parafiscales-mensuales", JSON.stringify(parafiscalesMensuales));
   }, [parafiscalesMensuales]);
 
-  useEffect(() => {
+ /* useEffect(() => {
     try {
       const registrosLimitados = productividad.slice(0, 500);
       localStorage.setItem("productividad-ot", JSON.stringify(registrosLimitados));
@@ -205,7 +211,7 @@ const AgendamientoOT = () => {
         console.error('Error guardando productividad:', error);
       }
     }
-  }, [productividad]);
+  }, [productividad]); */
 
   useEffect(() => {
     localStorage.setItem("zoho-config", JSON.stringify(zohoConfig));
@@ -1148,6 +1154,30 @@ ${parafiscalesMensuales.tecnicos
                   {/* Dropdown Menu */}
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <div className="py-2">
+                      {/* 🆕 NUEVOS BOTONES */}
+                      <button
+                        onClick={() => setMostrarDashboard(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-purple-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <BarChart3 size={16} className="text-purple-600" />
+                        <span>Dashboard</span>
+                      </button>
+                      <button
+                        onClick={() => setMostrarReportes(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <Mail size={16} className="text-indigo-600" />
+                        <span>Reportes Automáticos</span>
+                      </button>
+                      <button
+                        onClick={() => setMostrarPlantillas(true)}
+                        className="w-full text-left px-4 py-2 hover:bg-pink-50 flex items-center gap-3 text-gray-700"
+                      >
+                        <FileText size={16} className="text-pink-600" />
+                        <span>Plantillas</span>
+                      </button>
+                      <div className="border-t border-gray-200 my-2"></div>
+                      {/* BOTONES EXISTENTES */}
                       <button
                         onClick={() => setMostrarConfigZoho(true)}
                         className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
@@ -1256,6 +1286,34 @@ ${parafiscalesMensuales.tecnicos
 
                 <div className="h-px bg-white/20 my-2"></div>
 
+                {/* 🆕 NUEVOS BOTONES MÓVIL */}
+                <button 
+                  onClick={() => { setMostrarDashboard(true); setMostrarMenu(false); }} 
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
+                  <BarChart3 size={20} />
+                  Dashboard
+                </button>
+
+                <button 
+                  onClick={() => { setMostrarReportes(true); setMostrarMenu(false); }} 
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
+                  <Mail size={20} />
+                  Reportes Automáticos
+                </button>
+
+                <button 
+                  onClick={() => { setMostrarPlantillas(true); setMostrarMenu(false); }} 
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
+                  <FileText size={20} />
+                  Plantillas
+                </button>
+
+                <div className="h-px bg-white/20 my-2"></div>
+
+                {/* BOTONES EXISTENTES */}
                 <button onClick={() => { setMostrarConfigZoho(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
                   <Settings size={20} />
                   Configuración Zoho
@@ -1334,6 +1392,32 @@ ${parafiscalesMensuales.tecnicos
           <FloatingModal isOpen={mostrarParafiscalesMensuales} onClose={() => setMostrarParafiscalesMensuales(false)} title="Parafiscales Mensuales" icon="📋" color="purple" defaultWidth="max-w-6xl">
             <ParafiscalesMensuales parafiscalesMensuales={parafiscalesMensuales} onActualizarMes={actualizarMesParafiscales} onAgregarTecnico={agregarTecnicoMensual} onActualizarTecnico={actualizarTecnicoMensual} onEliminarTecnico={eliminarTecnicoMensual} onImportarExcel={importarParafiscalesExcel} onClose={() => setMostrarParafiscalesMensuales(false)} />
           </FloatingModal>
+        )}
+
+        {/* 🆕 NUEVOS MODALES */}
+        {mostrarDashboard && (
+          <FloatingModal 
+            isOpen={mostrarDashboard} 
+            onClose={() => setMostrarDashboard(false)} 
+            title="Dashboard de Métricas" 
+            icon="📊" 
+            color="purple" 
+            defaultWidth="max-w-7xl"
+          >
+            <Dashboard productividad={productividad} />
+          </FloatingModal>
+        )}
+
+        {mostrarReportes && (
+          <ReportesAutomaticos
+            productividad={productividad}
+            zohoConfig={zohoConfig}
+            onClose={() => setMostrarReportes(false)}
+          />
+        )}
+
+        {mostrarPlantillas && (
+          <PlantillasCorreo onClose={() => setMostrarPlantillas(false)} />
         )}
 
         {/* Estadísticas con diseño corporativo */}
