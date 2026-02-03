@@ -25,6 +25,7 @@ import { generarPDT, obtenerPlantillaPDT } from "./utils/generadorPDT";
 import Dashboard from "./components/Dashboard";
 import ReportesAutomaticos from "./components/ReportesAutomaticos";
 import PlantillasCorreo from "./components/PlantillasCorreo";
+import useJSONDatabase from "./hooks/useJSONDatabase";
 
 // Iconos
 import {
@@ -132,7 +133,8 @@ const AgendamientoOT = () => {
         };
   });
 
-  const [mostrarParafiscalesMensuales, setMostrarParafiscalesMensuales] = useState(false);
+  const [mostrarParafiscalesMensuales, setMostrarParafiscalesMensuales] =
+    useState(false);
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
   const [mostrarAutocheck, setMostrarAutocheck] = useState(false);
   const [mostrarGestionContactos, setMostrarGestionContactos] = useState(false);
@@ -169,21 +171,29 @@ const AgendamientoOT = () => {
         };
   });
 
-  const [productividad, setProductividad] = useState(() => {
-    const saved = localStorage.getItem("productividad-ot");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const {
+    data: productividad,
+    setData: setProductividad,
+    loading: _loadingDB, // Prefijo _ indica que es intencional no usarla
+    saveData,
+  } = useJSONDatabase("productividad", true);
 
-  // ========== EFFECTS ========== 
+  // ========== EFFECTS ==========
   useEffect(() => {
-    localStorage.setItem("contactos-guardados", JSON.stringify(contactosGuardados));
+    localStorage.setItem(
+      "contactos-guardados",
+      JSON.stringify(contactosGuardados),
+    );
   }, [contactosGuardados]);
 
   useEffect(() => {
-    localStorage.setItem("parafiscales-mensuales", JSON.stringify(parafiscalesMensuales));
+    localStorage.setItem(
+      "parafiscales-mensuales",
+      JSON.stringify(parafiscalesMensuales),
+    );
   }, [parafiscalesMensuales]);
 
- /* useEffect(() => {
+  /* useEffect(() => {
     try {
       const registrosLimitados = productividad.slice(0, 500);
       localStorage.setItem("productividad-ot", JSON.stringify(registrosLimitados));
@@ -236,7 +246,9 @@ const AgendamientoOT = () => {
     const pendientes = productividad.filter((ot) => ot.estado === "Pendiente");
     if (pendientes.length > 0) {
       const timer = setTimeout(() => {
-        alert(`⏰ RECORDATORIO:\n\nTienes ${pendientes.length} OT(s) pendiente(s)`);
+        alert(
+          `⏰ RECORDATORIO:\n\nTienes ${pendientes.length} OT(s) pendiente(s)`,
+        );
       }, 2000);
       return () => clearTimeout(timer);
     }
@@ -257,7 +269,9 @@ const AgendamientoOT = () => {
         const match =
           contacto.nombre.toLowerCase().includes(value.toLowerCase()) ||
           contacto.email.toLowerCase().includes(value.toLowerCase());
-        const yaAgregado = formData.copiaCC.some((cc) => cc.email === contacto.email);
+        const yaAgregado = formData.copiaCC.some(
+          (cc) => cc.email === contacto.email,
+        );
         return match && !yaAgregado;
       });
       setSugerenciasCC(sugerencias);
@@ -267,7 +281,10 @@ const AgendamientoOT = () => {
   };
 
   const agregarCC = (contacto) => {
-    if (contacto.email && !formData.copiaCC.some((cc) => cc.email === contacto.email)) {
+    if (
+      contacto.email &&
+      !formData.copiaCC.some((cc) => cc.email === contacto.email)
+    ) {
       setFormData((prev) => ({
         ...prev,
         copiaCC: [...prev.copiaCC, contacto],
@@ -326,7 +343,10 @@ const AgendamientoOT = () => {
   const agregarTecnicoMensual = () => {
     setParafiscalesMensuales((prev) => ({
       ...prev,
-      tecnicos: [...prev.tecnicos, { nombre: "", cedula: "", eps: "", arl: "" }],
+      tecnicos: [
+        ...prev.tecnicos,
+        { nombre: "", cedula: "", eps: "", arl: "" },
+      ],
     }));
   };
 
@@ -407,7 +427,11 @@ const AgendamientoOT = () => {
   };
 
   const sincronizarContactosZoho = async () => {
-    if (!zohoConfig.clientId || !zohoConfig.clientSecret || !zohoConfig.refreshToken) {
+    if (
+      !zohoConfig.clientId ||
+      !zohoConfig.clientSecret ||
+      !zohoConfig.refreshToken
+    ) {
       alert("⚠️ Configura tus credenciales OAuth primero");
       setMostrarConfigZoho(true);
       return;
@@ -420,8 +444,29 @@ const AgendamientoOT = () => {
   };
 
   const generarCuerpo = () => {
-    const dias = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-    const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const dias = [
+      "Domingo",
+      "Lunes",
+      "Martes",
+      "Miercoles",
+      "Jueves",
+      "Viernes",
+      "Sabado",
+    ];
+    const meses = [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "octubre",
+      "noviembre",
+      "diciembre",
+    ];
 
     let fechaFormateada = "";
     if (formData.fecha) {
@@ -447,13 +492,37 @@ Duracion de la actividad: ${formData.duracion}
 
 PARAFISCALES DE LOS TECNICOS:
 ${parafiscalesMensuales.tecnicos
-  .map((tec) => `${String(tec.nombre || "").padEnd(35)} CC: ${String(tec.cedula || "").padEnd(15)} EPS: ${String(tec.eps || "").padEnd(20)} ARL: ${String(tec.arl || "")}`)
+  .map(
+    (tec) =>
+      `${String(tec.nombre || "").padEnd(35)} CC: ${String(tec.cedula || "").padEnd(15)} EPS: ${String(tec.eps || "").padEnd(20)} ARL: ${String(tec.arl || "")}`,
+  )
   .join("\n")}`;
   };
 
   const generarCuerpoHTML = () => {
-    const dias = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-    const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const dias = [
+      "Domingo",
+      "Lunes",
+      "Martes",
+      "Miercoles",
+      "Jueves",
+      "Viernes",
+      "Sabado",
+    ];
+    const meses = [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "octubre",
+      "noviembre",
+      "diciembre",
+    ];
 
     let fechaFormateada = "";
     if (formData.fecha) {
@@ -499,9 +568,10 @@ ${parafiscalesMensuales.tecnicos
         
         <p>Consideramos oportuno recordarle que para que esta obra pueda completarse es necesario solicitar acompañamiento por parte del personal de mantenimiento de las instalaciones. De la misma forma, quisieramos pec celular de la persona de contacto en sitio. Esto nos sera muy util para estar en contacto con el.</p>
         
-        ${formData.tablaPersonalizada
-          ? formData.tablaPersonalizada
-          : `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+        ${
+          formData.tablaPersonalizada
+            ? formData.tablaPersonalizada
+            : `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
           <thead>
             <tr style="background-color: #e30613; color: white;">
               <th>Nombre</th>
@@ -512,14 +582,16 @@ ${parafiscalesMensuales.tecnicos
           </thead>
           <tbody>
             ${parafiscalesMensuales.tecnicos
-              .map((tec) => `
+              .map(
+                (tec) => `
               <tr>
                 <td>${tec.nombre}</td>
                 <td>${tec.cedula}</td>
                 <td>${tec.eps}</td>
                 <td>${tec.arl}</td>
               </tr>
-            `)
+            `,
+              )
               .join("")}
           </tbody>
         </table>`
@@ -577,28 +649,32 @@ ${parafiscalesMensuales.tecnicos
   const descargarPlantillaPDTManual = async (servicioPDT) => {
     try {
       if (!servicioPDT) {
-        alert('⚠️ Selecciona un tipo de servicio PDT primero');
+        alert("⚠️ Selecciona un tipo de servicio PDT primero");
         return;
       }
 
       const plantilla = await obtenerPlantillaPDT(servicioPDT);
 
       if (!plantilla) {
-        alert(`⚠️ No hay plantilla configurada para: ${servicioPDT}\n\nPor favor, sube la plantilla en Gestión de PDTs`);
+        alert(
+          `⚠️ No hay plantilla configurada para: ${servicioPDT}\n\nPor favor, sube la plantilla en Gestión de PDTs`,
+        );
         return;
       }
 
       if (!plantilla.base64) {
-        alert("⚠️ La plantilla existe pero no tiene el archivo. Intenta subirla de nuevo.");
+        alert(
+          "⚠️ La plantilla existe pero no tiene el archivo. Intenta subirla de nuevo.",
+        );
         return;
       }
 
       const datosOT = {
-        numeroOT: formData.numeroOT || 'PLANTILLA',
-        cliente: formData.cliente || 'CLIENTE',
+        numeroOT: formData.numeroOT || "PLANTILLA",
+        cliente: formData.cliente || "CLIENTE",
         fecha: new Date().toLocaleDateString("es-CO"),
-        ciudad: formData.ciudad || '',
-        direccion: formData.direccion || '',
+        ciudad: formData.ciudad || "",
+        direccion: formData.direccion || "",
         servicio: servicioPDT,
       };
 
@@ -608,13 +684,13 @@ ${parafiscalesMensuales.tecnicos
         console.log(`✅ Plantilla PDT descargada: ${resultado.nombreArchivo}`);
         alert(
           `✅ Plantilla descargada exitosamente\n\n` +
-          `Archivo: ${resultado.nombreArchivo}\n\n` +
-          `📝 Ahora:\n` +
-          `1. Abre el archivo Excel\n` +
-          `2. Completa todos los campos requeridos\n` +
-          `3. Guarda el archivo\n` +
-          `4. Adjúntalo al correo de la OT\n` +
-          `5. Marca el checkbox "✅ Ya adjunté el PDT"`
+            `Archivo: ${resultado.nombreArchivo}\n\n` +
+            `📝 Ahora:\n` +
+            `1. Abre el archivo Excel\n` +
+            `2. Completa todos los campos requeridos\n` +
+            `3. Guarda el archivo\n` +
+            `4. Adjúntalo al correo de la OT\n` +
+            `5. Marca el checkbox "✅ Ya adjunté el PDT"`,
         );
       } else {
         console.error("Error generando plantilla PDT:", resultado.error);
@@ -631,18 +707,27 @@ ${parafiscalesMensuales.tecnicos
     return () => {
       delete window.descargarPlantillaPDTManual;
     };
-  }, [formData.numeroOT, formData.cliente, formData.ciudad, formData.direccion]);
+  }, [
+    formData.numeroOT,
+    formData.cliente,
+    formData.ciudad,
+    formData.direccion,
+  ]);
 
   const enviarCorreoZoho = async () => {
-    if (formData.generarPDT === null || formData.generarPDT === undefined || formData.generarPDT === '') {
+    if (
+      formData.generarPDT === null ||
+      formData.generarPDT === undefined ||
+      formData.generarPDT === ""
+    ) {
       alert(
         "🚨 VALIDACIÓN REQUERIDA 🚨\n\n" +
-        "Debes indicar si necesitas o NO un PDT para esta OT.\n\n" +
-        "Por favor:\n" +
-        "1. Revisa la sección 'PDT - Plan Técnico de Despliegue'\n" +
-        "2. Haz click en 'SÍ, necesito PDT' o 'NO necesito PDT'\n" +
-        "3. Intenta enviar el correo de nuevo\n\n" +
-        "⚠️ Esta validación es OBLIGATORIA para evitar olvidar PDTs importantes."
+          "Debes indicar si necesitas o NO un PDT para esta OT.\n\n" +
+          "Por favor:\n" +
+          "1. Revisa la sección 'PDT - Plan Técnico de Despliegue'\n" +
+          "2. Haz click en 'SÍ, necesito PDT' o 'NO necesito PDT'\n" +
+          "3. Intenta enviar el correo de nuevo\n\n" +
+          "⚠️ Esta validación es OBLIGATORIA para evitar olvidar PDTs importantes.",
       );
       return;
     }
@@ -650,74 +735,84 @@ ${parafiscalesMensuales.tecnicos
     if (formData.generarPDT === true && !formData.servicioPDT) {
       alert(
         "⚠️ FALTA SELECCIONAR SERVICIO ⚠️\n\n" +
-        "Marcaste que SÍ necesitas PDT, pero no has seleccionado el tipo de servicio.\n\n" +
-        "Por favor:\n" +
-        "1. Selecciona el tipo de servicio en el dropdown\n" +
-        "2. Intenta enviar el correo de nuevo"
+          "Marcaste que SÍ necesitas PDT, pero no has seleccionado el tipo de servicio.\n\n" +
+          "Por favor:\n" +
+          "1. Selecciona el tipo de servicio en el dropdown\n" +
+          "2. Intenta enviar el correo de nuevo",
       );
       return;
     }
 
-    if (formData.generarPDT === true && formData.servicioPDT && !formData.pdtSubido) {
+    if (
+      formData.generarPDT === true &&
+      formData.servicioPDT &&
+      !formData.pdtSubido
+    ) {
       const confirmacionPDT = window.confirm(
         "🚨 VALIDACIÓN CRÍTICA - PDT 🚨\n\n" +
-        `Esta OT REQUIERE un PDT del tipo "${formData.servicioPDT}"\n\n` +
-        "❌ NO has marcado que adjuntaste el PDT\n\n" +
-        "¿Realmente quieres enviar el correo SIN adjuntar el PDT?\n\n" +
-        "⚠️ CONSECUENCIAS:\n" +
-        "• El cliente NO recibirá el plan técnico\n" +
-        "• Puede haber retrasos en la implementación\n" +
-        "• Falta de documentación técnica obligatoria\n" +
-        "• Incumplimiento de procesos\n\n" +
-        "SI ya adjuntaste el PDT:\n" +
-        '→ Click "Cancelar" y marca el checkbox de confirmación\n\n' +
-        "SI NO has adjuntado el PDT:\n" +
-        '→ Click "Cancelar", descarga la plantilla, llénala y adjúntala\n\n' +
-        "¿Enviar de todas formas SIN PDT? (NO recomendado)"
+          `Esta OT REQUIERE un PDT del tipo "${formData.servicioPDT}"\n\n` +
+          "❌ NO has marcado que adjuntaste el PDT\n\n" +
+          "¿Realmente quieres enviar el correo SIN adjuntar el PDT?\n\n" +
+          "⚠️ CONSECUENCIAS:\n" +
+          "• El cliente NO recibirá el plan técnico\n" +
+          "• Puede haber retrasos en la implementación\n" +
+          "• Falta de documentación técnica obligatoria\n" +
+          "• Incumplimiento de procesos\n\n" +
+          "SI ya adjuntaste el PDT:\n" +
+          '→ Click "Cancelar" y marca el checkbox de confirmación\n\n' +
+          "SI NO has adjuntado el PDT:\n" +
+          '→ Click "Cancelar", descarga la plantilla, llénala y adjúntala\n\n' +
+          "¿Enviar de todas formas SIN PDT? (NO recomendado)",
       );
 
       if (!confirmacionPDT) {
         alert(
           "✅ Correo NO enviado.\n\n" +
-          "📋 Por favor:\n" +
-          `1. Descarga la plantilla PDT "${formData.servicioPDT}"\n` +
-          "2. Llena la plantilla con los datos de la OT\n" +
-          "3. Adjúntala al correo\n" +
-          "4. Marca el checkbox '✅ Ya adjunté el PDT'\n" +
-          "5. Intenta enviar de nuevo"
+            "📋 Por favor:\n" +
+            `1. Descarga la plantilla PDT "${formData.servicioPDT}"\n` +
+            "2. Llena la plantilla con los datos de la OT\n" +
+            "3. Adjúntala al correo\n" +
+            "4. Marca el checkbox '✅ Ya adjunté el PDT'\n" +
+            "5. Intenta enviar de nuevo",
         );
         return;
       }
 
       const segundaConfirmacionPDT = window.confirm(
         "🚨🚨🚨 ÚLTIMA ADVERTENCIA - PDT 🚨🚨🚨\n\n" +
-        "Estás a punto de enviar una OT que REQUIERE PDT sin adjuntarlo.\n\n" +
-        "Esto es una FALTA GRAVE de documentación.\n\n" +
-        "El correo quedará registrado como ENVIADO SIN PDT.\n\n" +
-        "¿REALMENTE quieres continuar sin adjuntar el PDT?"
+          "Estás a punto de enviar una OT que REQUIERE PDT sin adjuntarlo.\n\n" +
+          "Esto es una FALTA GRAVE de documentación.\n\n" +
+          "El correo quedará registrado como ENVIADO SIN PDT.\n\n" +
+          "¿REALMENTE quieres continuar sin adjuntar el PDT?",
       );
 
       if (!segundaConfirmacionPDT) {
-        alert("✅ Correo NO enviado.\n\n¡Gracias por verificar! Adjunta el PDT primero.");
+        alert(
+          "✅ Correo NO enviado.\n\n¡Gracias por verificar! Adjunta el PDT primero.",
+        );
         return;
       }
 
       alert(
         "⚠️ ENVIANDO SIN PDT ⚠️\n\n" +
-        "El correo se enviará PERO quedará registrado que NO se adjuntó el PDT.\n\n" +
-        "Recuerda enviar el PDT al cliente lo antes posible."
+          "El correo se enviará PERO quedará registrado que NO se adjuntó el PDT.\n\n" +
+          "Recuerda enviar el PDT al cliente lo antes posible.",
       );
     }
 
     if (formData.generarPDT === false && !formData.confirmoNoPDT) {
       alert(
         "⚠️ CONFIRMACIÓN REQUERIDA ⚠️\n\n" +
-        "Has indicado que esta OT NO necesita PDT.\n\n" +
-        "Debes confirmar explícitamente marcando el checkbox:\n" +
-        '"✅ Confirmo que esta OT NO requiere PDT"\n\n' +
-        "Tipo de servicio: " + formData.tipoServicio + "\n" +
-        "Cliente: " + formData.cliente + "\n\n" +
-        "Por favor marca el checkbox de confirmación antes de enviar."
+          "Has indicado que esta OT NO necesita PDT.\n\n" +
+          "Debes confirmar explícitamente marcando el checkbox:\n" +
+          '"✅ Confirmo que esta OT NO requiere PDT"\n\n' +
+          "Tipo de servicio: " +
+          formData.tipoServicio +
+          "\n" +
+          "Cliente: " +
+          formData.cliente +
+          "\n\n" +
+          "Por favor marca el checkbox de confirmación antes de enviar.",
       );
       return;
     }
@@ -734,7 +829,9 @@ ${parafiscalesMensuales.tecnicos
       );
 
       if (!confirmacion) {
-        alert("✅ Correo NO enviado.\n\n📋 Por favor:\n1. Agenda la OT en Consensus\n2. Marca el checkbox\n3. Intenta enviar de nuevo");
+        alert(
+          "✅ Correo NO enviado.\n\n📋 Por favor:\n1. Agenda la OT en Consensus\n2. Marca el checkbox\n3. Intenta enviar de nuevo",
+        );
         return;
       }
 
@@ -749,11 +846,17 @@ ${parafiscalesMensuales.tecnicos
       );
 
       if (!segundaConfirmacion) {
-        alert("✅ Correo NO enviado.\n\n¡Gracias por verificar! Agenda en Consensus primero.");
+        alert(
+          "✅ Correo NO enviado.\n\n¡Gracias por verificar! Agenda en Consensus primero.",
+        );
         return;
       }
 
-      alert("⚠️ ENVIANDO SIN CONSENSUS ⚠️\n\n" + "El correo se enviará pero quedará registrado que NO fue agendado en Consensus.\n\n" + "Recuerda agendarlo después para evitar problemas.");
+      alert(
+        "⚠️ ENVIANDO SIN CONSENSUS ⚠️\n\n" +
+          "El correo se enviará pero quedará registrado que NO fue agendado en Consensus.\n\n" +
+          "Recuerda agendarlo después para evitar problemas.",
+      );
     }
 
     if (!zohoConfig.email || !zohoConfig.password) {
@@ -809,24 +912,28 @@ ${parafiscalesMensuales.tecnicos
   };
 
   const registrarEnvio = async () => {
-    const otExistente = productividad.find(ot => ot.numeroOT === formData.numeroOT);
-    
+    const otExistente = productividad.find(
+      (ot) => ot.numeroOT === formData.numeroOT,
+    );
+
+    let nuevaProductividad;
+
     if (otExistente) {
-      setProductividad((prev) => 
-        prev.map((ot) => 
-          ot.numeroOT === formData.numeroOT 
-            ? {
-                ...ot,
-                ...formData,
-                fechaEnvio: new Date().toISOString(),
-                estado: "Enviado",
-                observaciones: formData.observaciones || ot.observaciones,
-                actualizadoRecientemente: true
-              }
-            : ot
-        )
+      nuevaProductividad = productividad.map((ot) =>
+        ot.numeroOT === formData.numeroOT
+          ? {
+              ...ot,
+              ...formData,
+              fechaEnvio: new Date().toISOString(),
+              estado: "Enviado",
+              observaciones: formData.observaciones || ot.observaciones,
+              actualizadoRecientemente: true,
+            }
+          : ot,
       );
-      console.log(`✅ OT ${formData.numeroOT} ACTUALIZADA de "Pendiente" a "Enviado" (sin duplicar)`);
+      console.log(
+        `✅ OT ${formData.numeroOT} ACTUALIZADA de "Pendiente" a "Enviado" (sin duplicar)`,
+      );
     } else {
       const nuevo = {
         id: Date.now(),
@@ -835,27 +942,38 @@ ${parafiscalesMensuales.tecnicos
         estado: "Enviado",
         rr: "",
       };
-      setProductividad((prev) => [nuevo, ...prev]);
+      nuevaProductividad = [nuevo, ...productividad];
       console.log(`✅ OT ${formData.numeroOT} CREADA en productividad`);
     }
-    
+
+    // 🗄️ Guardar en BD JSON
+    await saveData(nuevaProductividad);
+
     setRegistrado(true);
     setTimeout(() => setRegistrado(false), 2000);
 
-    const pendientes = JSON.parse(localStorage.getItem("ots-pendientes") || "[]");
-    const nuevosPendientes = pendientes.filter((p) => p.numeroOT !== formData.numeroOT);
+    const pendientes = JSON.parse(
+      localStorage.getItem("ots-pendientes") || "[]",
+    );
+    const nuevosPendientes = pendientes.filter(
+      (p) => p.numeroOT !== formData.numeroOT,
+    );
     if (nuevosPendientes.length !== pendientes.length) {
       localStorage.setItem("ots-pendientes", JSON.stringify(nuevosPendientes));
-      console.log(`✅ OT ${formData.numeroOT} quitada de pendientes automáticamente`);
-      
-      setForceUpdatePendientes(prev => {
+      console.log(
+        `✅ OT ${formData.numeroOT} quitada de pendientes automáticamente`,
+      );
+
+      setForceUpdatePendientes((prev) => {
         const newValue = prev + 1;
         console.log(`🔄 Force update pendientes: ${prev} → ${newValue}`);
         return newValue;
       });
-      
+
       setTimeout(() => {
-        alert(`✅ OT ${formData.numeroOT} quitada de pendientes y productividad actualizada`);
+        alert(
+          `✅ OT ${formData.numeroOT} quitada de pendientes y productividad actualizada`,
+        );
       }, 100);
     }
 
@@ -881,37 +999,41 @@ ${parafiscalesMensuales.tecnicos
       copiaCC: [],
     });
     setArchivoZip(null);
-    
+
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
   const registrarRapido = async (datosRapidos) => {
-    const otExistente = productividad.find(ot => ot.numeroOT === datosRapidos.numeroOT);
-    
+    const otExistente = productividad.find(
+      (ot) => ot.numeroOT === datosRapidos.numeroOT,
+    );
+
+    let nuevaProductividad;
+
     if (otExistente) {
-      setProductividad((prev) => 
-        prev.map((ot) => 
-          ot.numeroOT === datosRapidos.numeroOT 
-            ? {
-                ...ot,
-                rr: datosRapidos.rr || ot.rr,
-                cliente: datosRapidos.cliente,
-                fecha: datosRapidos.fecha || ot.fecha,
-                tipoServicio: datosRapidos.tipoServicio,
-                observaciones: datosRapidos.observaciones || ot.observaciones,
-                consensus: datosRapidos.consensus,
-                generarPDT: datosRapidos.generarPDT,
-                servicioPDT: datosRapidos.servicioPDT || "",
-                fechaEnvio: new Date().toISOString(),
-                estado: "Enviado",
-                actualizadoRecientemente: true
-              }
-            : ot
-        )
+      nuevaProductividad = productividad.map((ot) =>
+        ot.numeroOT === datosRapidos.numeroOT
+          ? {
+              ...ot,
+              rr: datosRapidos.rr || ot.rr,
+              cliente: datosRapidos.cliente,
+              fecha: datosRapidos.fecha || ot.fecha,
+              tipoServicio: datosRapidos.tipoServicio,
+              observaciones: datosRapidos.observaciones || ot.observaciones,
+              consensus: datosRapidos.consensus,
+              generarPDT: datosRapidos.generarPDT,
+              servicioPDT: datosRapidos.servicioPDT || "",
+              fechaEnvio: new Date().toISOString(),
+              estado: "Enviado",
+              actualizadoRecientemente: true,
+            }
+          : ot,
       );
-      console.log(`✅ OT ${datosRapidos.numeroOT} ACTUALIZADA de "Pendiente" a "Enviado" (Registro Rápido - sin duplicar)`);
+      console.log(
+        `✅ OT ${datosRapidos.numeroOT} ACTUALIZADA de "Pendiente" a "Enviado" (Registro Rápido - sin duplicar)`,
+      );
     } else {
       const nuevoRegistro = {
         id: Date.now(),
@@ -926,7 +1048,9 @@ ${parafiscalesMensuales.tecnicos
         contacto: "",
         telefono: "",
         tipoServicio: datosRapidos.tipoServicio,
-        observaciones: datosRapidos.observaciones || "📝 Registro rápido - Sin correo enviado",
+        observaciones:
+          datosRapidos.observaciones ||
+          "📝 Registro rápido - Sin correo enviado",
         duracion: "",
         consensus: datosRapidos.consensus,
         generarPDT: datosRapidos.generarPDT,
@@ -936,89 +1060,119 @@ ${parafiscalesMensuales.tecnicos
         fechaEnvio: new Date().toISOString(),
         estado: "Enviado",
       };
-      setProductividad((prev) => [nuevoRegistro, ...prev]);
-      console.log(`✅ OT ${datosRapidos.numeroOT} CREADA en productividad (Registro Rápido)`);
+      nuevaProductividad = [nuevoRegistro, ...productividad];
+      console.log(
+        `✅ OT ${datosRapidos.numeroOT} CREADA en productividad (Registro Rápido)`,
+      );
     }
 
-    const pendientes = JSON.parse(localStorage.getItem("ots-pendientes") || "[]");
-    const nuevosPendientes = pendientes.filter((p) => p.numeroOT !== datosRapidos.numeroOT);
+    // 🗄️ Guardar en BD JSON
+    await saveData(nuevaProductividad);
+
+    const pendientes = JSON.parse(
+      localStorage.getItem("ots-pendientes") || "[]",
+    );
+    const nuevosPendientes = pendientes.filter(
+      (p) => p.numeroOT !== datosRapidos.numeroOT,
+    );
     if (nuevosPendientes.length !== pendientes.length) {
       localStorage.setItem("ots-pendientes", JSON.stringify(nuevosPendientes));
-      console.log(`✅ OT ${datosRapidos.numeroOT} quitada de pendientes automáticamente (Registro Rápido)`);
-      
-      setForceUpdatePendientes(prev => {
+      console.log(
+        `✅ OT ${datosRapidos.numeroOT} quitada de pendientes automáticamente (Registro Rápido)`,
+      );
+
+      setForceUpdatePendientes((prev) => {
         const newValue = prev + 1;
-        console.log(`🔄 Force update pendientes (Registro Rápido): ${prev} → ${newValue}`);
+        console.log(
+          `🔄 Force update pendientes (Registro Rápido): ${prev} → ${newValue}`,
+        );
         return newValue;
       });
-      
+
       setTimeout(() => {
-        alert(`✅ OT ${datosRapidos.numeroOT} quitada de pendientes y productividad actualizada`);
+        alert(
+          `✅ OT ${datosRapidos.numeroOT} quitada de pendientes y productividad actualizada`,
+        );
       }, 100);
     }
   };
 
-  const actualizarEstadoOT = (id, nuevoEstado) => {
-    setProductividad((prev) => prev.map((ot) => (ot.id === id ? { ...ot, estado: nuevoEstado } : ot)));
+  const actualizarEstadoOT = async (id, nuevoEstado) => {
+    const nuevaProductividad = productividad.map((ot) =>
+      ot.id === id ? { ...ot, estado: nuevoEstado } : ot,
+    );
+    await saveData(nuevaProductividad);
   };
 
-  const actualizarRR = (id, nuevoRR) => {
-    setProductividad((prev) => prev.map((ot) => (ot.id === id ? { ...ot, rr: nuevoRR } : ot)));
+  const actualizarRR = async (id, nuevoRR) => {
+    const nuevaProductividad = productividad.map((ot) =>
+      ot.id === id ? { ...ot, rr: nuevoRR } : ot,
+    );
+    await saveData(nuevaProductividad);
   };
 
-  const borrarTodasLasOTs = () => {
+  const borrarTodasLasOTs = async () => {
     const totalRegistros = productividad.length;
-    
+
     if (totalRegistros === 0) {
-      alert('✅ No hay registros en productividad.\n\nProductividad ya está vacía.');
+      alert(
+        "✅ No hay registros en productividad.\n\nProductividad ya está vacía.",
+      );
       return;
     }
-    
-    if (confirm(
-      `🗑️ BORRAR TODA LA PRODUCTIVIDAD\n\n` +
-      `Se eliminarán TODOS los ${totalRegistros} registros de productividad.\n\n` +
-      `⚠️ ADVERTENCIA:\n` +
-      `• Esta acción es PERMANENTE\n` +
-      `• NO se puede deshacer\n` +
-      `• Se recomienda exportar a Excel primero\n\n` +
-      `¿Estás SEGURO de que quieres borrar todo?`
-    )) {
-      if (confirm(
-        `⚠️ ÚLTIMA CONFIRMACIÓN ⚠️\n\n` +
-        `Vas a eliminar ${totalRegistros} registros.\n\n` +
-        `¿Confirmas que quieres BORRAR TODO?\n\n` +
-        `(Esta es tu última oportunidad para cancelar)`
-      )) {
-        setProductividad([]);
-        alert(`✅ Productividad borrada completamente.\n\n${totalRegistros} registros eliminados.\n\nLocalStorage liberado.`);
+
+    if (
+      confirm(
+        `🗑️ BORRAR TODA LA PRODUCTIVIDAD\n\n` +
+          `Se eliminarán TODOS los ${totalRegistros} registros de productividad.\n\n` +
+          `⚠️ ADVERTENCIA:\n` +
+          `• Esta acción es PERMANENTE\n` +
+          `• NO se puede deshacer\n` +
+          `• Se recomienda exportar a Excel primero\n\n` +
+          `¿Estás SEGURO de que quieres borrar todo?`,
+      )
+    ) {
+      if (
+        confirm(
+          `⚠️ ÚLTIMA CONFIRMACIÓN ⚠️\n\n` +
+            `Vas a eliminar ${totalRegistros} registros.\n\n` +
+            `¿Confirmas que quieres BORRAR TODO?\n\n` +
+            `(Esta es tu última oportunidad para cancelar)`,
+        )
+      ) {
+        await saveData([]);
+        alert(
+          `✅ Productividad borrada completamente.\n\n${totalRegistros} registros eliminados.\n\nBase de datos limpiada.`,
+        );
       }
     }
   };
 
-  const actualizarObservaciones = (id, nuevasObservaciones) => {
+  const actualizarObservaciones = async (id, nuevasObservaciones) => {
     const ahora = new Date().toISOString();
-    setProductividad((prev) => 
-      prev.map((ot) => 
-        ot.id === id 
-          ? { 
-              ...ot, 
-              observaciones: nuevasObservaciones,
-              fechaEnvio: ahora,
-              actualizadoRecientemente: true
-            } 
-          : ot
-      )
+    const nuevaProductividad = productividad.map((ot) =>
+      ot.id === id
+        ? {
+            ...ot,
+            observaciones: nuevasObservaciones,
+            fechaEnvio: ahora,
+            actualizadoRecientemente: true,
+          }
+        : ot,
     );
-    
+
+    await saveData(nuevaProductividad);
+
     alert(
-      '✅ Observaciones actualizadas\n\n' +
-      '📅 La fecha de esta OT se actualizó a HOY para reflejar la actividad reciente.\n\n' +
-      '💡 Esta OT aparecerá ahora en los filtros de "Hoy" y "Semana".'
+      "✅ Observaciones actualizadas\n\n" +
+        "📅 La fecha de esta OT se actualizó a HOY para reflejar la actividad reciente.\n\n" +
+        '💡 Esta OT aparecerá ahora en los filtros de "Hoy" y "Semana".',
     );
   };
 
-  const eliminarOT = (id) => {
-    setProductividad((prev) => prev.filter((ot) => ot.id !== id));
+  const eliminarOT = async (id) => {
+    const nuevaProductividad = productividad.filter((ot) => ot.id !== id);
+    await saveData(nuevaProductividad);
   };
 
   const reutilizarCorreo = (ot) => {
@@ -1038,7 +1192,10 @@ ${parafiscalesMensuales.tecnicos
       if (elemento) {
         elemento.scrollIntoView({ behavior: "smooth", block: "center" });
         elemento.classList.add("ring-4", "ring-blue-400");
-        setTimeout(() => elemento.classList.remove("ring-4", "ring-blue-400"), 2000);
+        setTimeout(
+          () => elemento.classList.remove("ring-4", "ring-blue-400"),
+          2000,
+        );
       }
     }, 300);
   };
@@ -1056,24 +1213,32 @@ ${parafiscalesMensuales.tecnicos
 
     setMostrarPendientes(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
-    alert("📝 Formulario llenado con datos de la OT.\n\nCompleta los campos restantes (fecha, hora, correo destino) y envía el correo.");
+    alert(
+      "📝 Formulario llenado con datos de la OT.\n\nCompleta los campos restantes (fecha, hora, correo destino) y envía el correo.",
+    );
   };
 
   const handleRegistrarPendienteEnProductividad = (registroProductividad) => {
     setProductividad((prev) => [registroProductividad, ...prev]);
-    console.log(`✅ OT ${registroProductividad.numeroOT} registrada en productividad con estado "Pendiente"`);
+    console.log(
+      `✅ OT ${registroProductividad.numeroOT} registrada en productividad con estado "Pendiente"`,
+    );
   };
 
-  const handleActualizarProductividad = (id, cambios, eliminar = false) => {
+  const handleActualizarProductividad = async (
+    id,
+    cambios,
+    eliminar = false,
+  ) => {
     if (eliminar) {
-      setProductividad((prev) => prev.filter((ot) => ot.id !== id));
+      const nuevaProductividad = productividad.filter((ot) => ot.id !== id);
+      await saveData(nuevaProductividad);
       console.log(`✅ OT eliminada de productividad (ID: ${id})`);
     } else {
-      setProductividad((prev) =>
-        prev.map((ot) =>
-          ot.id === id ? { ...ot, ...cambios } : ot
-        )
+      const nuevaProductividad = productividad.map((ot) =>
+        ot.id === id ? { ...ot, ...cambios } : ot,
       );
+      await saveData(nuevaProductividad);
       console.log(`✅ OT actualizada en productividad (ID: ${id})`, cambios);
     }
   };
@@ -1082,17 +1247,29 @@ ${parafiscalesMensuales.tecnicos
     const hoy = new Date().toDateString();
     const inicioSemana = new Date();
     inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
-    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const inicioMes = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1,
+    );
 
     return {
-      hoyCount: productividad.filter((ot) => new Date(ot.fechaEnvio).toDateString() === hoy).length,
-      semanaCount: productividad.filter((ot) => new Date(ot.fechaEnvio) >= inicioSemana).length,
-      mesCount: productividad.filter((ot) => new Date(ot.fechaEnvio) >= inicioMes).length,
+      hoyCount: productividad.filter(
+        (ot) => new Date(ot.fechaEnvio).toDateString() === hoy,
+      ).length,
+      semanaCount: productividad.filter(
+        (ot) => new Date(ot.fechaEnvio) >= inicioSemana,
+      ).length,
+      mesCount: productividad.filter(
+        (ot) => new Date(ot.fechaEnvio) >= inicioMes,
+      ).length,
     };
   };
 
   const stats = calcularEstadisticas();
-  const pendientesCount = JSON.parse(localStorage.getItem("ots-pendientes") || "[]").length;
+  const pendientesCount = JSON.parse(
+    localStorage.getItem("ots-pendientes") || "[]",
+  ).length;
 
   // ========== RENDER ==========
   return (
@@ -1131,7 +1308,7 @@ ${parafiscalesMensuales.tecnicos
                     </span>
                   </button>
                 )}
-                
+
                 {/* Botón de Búsqueda */}
                 <button
                   onClick={() => setMostrarBusqueda(true)}
@@ -1150,7 +1327,7 @@ ${parafiscalesMensuales.tecnicos
                     <span className="hidden xl:inline">Herramientas</span>
                     <ChevronDown size={16} />
                   </button>
-                  
+
                   {/* Dropdown Menu */}
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <div className="py-2">
@@ -1189,7 +1366,10 @@ ${parafiscalesMensuales.tecnicos
                         onClick={() => setMostrarGestionPDT(true)}
                         className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
                       >
-                        <FileSpreadsheet size={16} className="text-emerald-600" />
+                        <FileSpreadsheet
+                          size={16}
+                          className="text-emerald-600"
+                        />
                         <span>Gestión PDTs</span>
                       </button>
                       <button
@@ -1252,7 +1432,11 @@ ${parafiscalesMensuales.tecnicos
                 onClick={() => setMostrarMenu(!mostrarMenu)}
                 className="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 transition backdrop-blur-sm"
               >
-                {mostrarMenu ? <X size={24} className="text-white" /> : <Menu size={24} className="text-white" />}
+                {mostrarMenu ? (
+                  <X size={24} className="text-white" />
+                ) : (
+                  <Menu size={24} className="text-white" />
+                )}
               </button>
             </div>
           </div>
@@ -1263,7 +1447,10 @@ ${parafiscalesMensuales.tecnicos
               <div className="px-4 py-4 space-y-2 max-h-[70vh] overflow-y-auto">
                 {pendientesCount > 0 && (
                   <button
-                    onClick={() => { setMostrarPendientes(true); setMostrarMenu(false); }}
+                    onClick={() => {
+                      setMostrarPendientes(true);
+                      setMostrarMenu(false);
+                    }}
                     className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-between transition shadow-lg"
                   >
                     <span className="flex items-center gap-3">
@@ -1275,9 +1462,12 @@ ${parafiscalesMensuales.tecnicos
                     </span>
                   </button>
                 )}
-                
+
                 <button
-                  onClick={() => { setMostrarBusqueda(true); setMostrarMenu(false); }}
+                  onClick={() => {
+                    setMostrarBusqueda(true);
+                    setMostrarMenu(false);
+                  }}
                   className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
                 >
                   <Search size={20} />
@@ -1287,24 +1477,33 @@ ${parafiscalesMensuales.tecnicos
                 <div className="h-px bg-white/20 my-2"></div>
 
                 {/* 🆕 NUEVOS BOTONES MÓVIL */}
-                <button 
-                  onClick={() => { setMostrarDashboard(true); setMostrarMenu(false); }} 
+                <button
+                  onClick={() => {
+                    setMostrarDashboard(true);
+                    setMostrarMenu(false);
+                  }}
                   className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
                 >
                   <BarChart3 size={20} />
                   Dashboard
                 </button>
 
-                <button 
-                  onClick={() => { setMostrarReportes(true); setMostrarMenu(false); }} 
+                <button
+                  onClick={() => {
+                    setMostrarReportes(true);
+                    setMostrarMenu(false);
+                  }}
                   className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
                 >
                   <Mail size={20} />
                   Reportes Automáticos
                 </button>
 
-                <button 
-                  onClick={() => { setMostrarPlantillas(true); setMostrarMenu(false); }} 
+                <button
+                  onClick={() => {
+                    setMostrarPlantillas(true);
+                    setMostrarMenu(false);
+                  }}
                   className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
                 >
                   <FileText size={20} />
@@ -1314,45 +1513,99 @@ ${parafiscalesMensuales.tecnicos
                 <div className="h-px bg-white/20 my-2"></div>
 
                 {/* BOTONES EXISTENTES */}
-                <button onClick={() => { setMostrarConfigZoho(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
+                <button
+                  onClick={() => {
+                    setMostrarConfigZoho(true);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
                   <Settings size={20} />
                   Configuración Zoho
                 </button>
 
-                <button onClick={() => { setMostrarGestionPDT(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
+                <button
+                  onClick={() => {
+                    setMostrarGestionPDT(true);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
                   <FileSpreadsheet size={20} />
                   Gestión PDTs
                 </button>
 
-                <button onClick={() => { setMostrarHistorial(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
+                <button
+                  onClick={() => {
+                    setMostrarHistorial(true);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
                   📜 Historial
                 </button>
 
-                <button onClick={() => { setMostrarAutocheck(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
+                <button
+                  onClick={() => {
+                    setMostrarAutocheck(true);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
                   ✅ Autocheck
                 </button>
 
-                <button onClick={() => { setMostrarParafiscalesMensuales(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
+                <button
+                  onClick={() => {
+                    setMostrarParafiscalesMensuales(true);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
                   📋 Parafiscales
                 </button>
 
-                <button onClick={() => { setMostrarGestionContactos(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
+                <button
+                  onClick={() => {
+                    setMostrarGestionContactos(true);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
                   📧 Contactos
                 </button>
 
-                <button onClick={() => { setMostrarZonificador(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
+                <button
+                  onClick={() => {
+                    setMostrarZonificador(true);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
                   <Map size={20} />
                   Zonificador
                 </button>
 
-                <button onClick={() => { setMostrarGuiaEscalamiento(true); setMostrarMenu(false); }} className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm">
+                <button
+                  onClick={() => {
+                    setMostrarGuiaEscalamiento(true);
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
+                >
                   <BookOpen size={20} />
                   Guía Escalamiento
                 </button>
 
                 <div className="h-px bg-white/20 my-2"></div>
 
-                <button onClick={() => { borrarTodasLasOTs(); setMostrarMenu(false); }} className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-200 font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm border border-red-400/30">
+                <button
+                  onClick={() => {
+                    borrarTodasLasOTs();
+                    setMostrarMenu(false);
+                  }}
+                  className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-200 font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm border border-red-400/30"
+                >
                   🗑️ Borrar Productividad
                 </button>
               </div>
@@ -1365,43 +1618,99 @@ ${parafiscalesMensuales.tecnicos
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Modales */}
         {mostrarHistorial && (
-          <FloatingModal isOpen={mostrarHistorial} onClose={() => setMostrarHistorial(false)} title="Historial de OTs" icon="📜" color="cyan">
-            <Historial productividad={productividad} onReutilizar={reutilizarCorreo} onClose={() => setMostrarHistorial(false)} />
+          <FloatingModal
+            isOpen={mostrarHistorial}
+            onClose={() => setMostrarHistorial(false)}
+            title="Historial de OTs"
+            icon="📜"
+            color="cyan"
+          >
+            <Historial
+              productividad={productividad}
+              onReutilizar={reutilizarCorreo}
+              onClose={() => setMostrarHistorial(false)}
+            />
           </FloatingModal>
         )}
 
         {mostrarAutocheck && (
-          <FloatingModal isOpen={mostrarAutocheck} onClose={() => setMostrarAutocheck(false)} title="Autocheck de OTs" icon="✅" color="orange" defaultWidth="max-w-6xl">
+          <FloatingModal
+            isOpen={mostrarAutocheck}
+            onClose={() => setMostrarAutocheck(false)}
+            title="Autocheck de OTs"
+            icon="✅"
+            color="orange"
+            defaultWidth="max-w-6xl"
+          >
             <Autocheck />
           </FloatingModal>
         )}
 
         {mostrarGestionContactos && (
-          <FloatingModal isOpen={mostrarGestionContactos} onClose={() => setMostrarGestionContactos(false)} title="Gestión de Contactos" icon="📧" color="green">
-            <GestionContactos contactosGuardados={contactosGuardados} onAgregarNuevo={agregarNuevoContacto} onActualizar={actualizarContacto} onEliminar={eliminarContacto} onSincronizarZoho={sincronizarContactosZoho} onClose={() => setMostrarGestionContactos(false)} />
+          <FloatingModal
+            isOpen={mostrarGestionContactos}
+            onClose={() => setMostrarGestionContactos(false)}
+            title="Gestión de Contactos"
+            icon="📧"
+            color="green"
+          >
+            <GestionContactos
+              contactosGuardados={contactosGuardados}
+              onAgregarNuevo={agregarNuevoContacto}
+              onActualizar={actualizarContacto}
+              onEliminar={eliminarContacto}
+              onSincronizarZoho={sincronizarContactosZoho}
+              onClose={() => setMostrarGestionContactos(false)}
+            />
           </FloatingModal>
         )}
 
         {mostrarConfigZoho && (
-          <FloatingModal isOpen={mostrarConfigZoho} onClose={() => setMostrarConfigZoho(false)} title="Configuración Zoho" icon="⚙️" color="indigo" defaultWidth="max-w-2xl">
-            <ConfiguracionZoho zohoConfig={zohoConfig} onConfigChange={handleZohoConfigChange} onClose={() => setMostrarConfigZoho(false)} />
+          <FloatingModal
+            isOpen={mostrarConfigZoho}
+            onClose={() => setMostrarConfigZoho(false)}
+            title="Configuración Zoho"
+            icon="⚙️"
+            color="indigo"
+            defaultWidth="max-w-2xl"
+          >
+            <ConfiguracionZoho
+              zohoConfig={zohoConfig}
+              onConfigChange={handleZohoConfigChange}
+              onClose={() => setMostrarConfigZoho(false)}
+            />
           </FloatingModal>
         )}
 
         {mostrarParafiscalesMensuales && (
-          <FloatingModal isOpen={mostrarParafiscalesMensuales} onClose={() => setMostrarParafiscalesMensuales(false)} title="Parafiscales Mensuales" icon="📋" color="purple" defaultWidth="max-w-6xl">
-            <ParafiscalesMensuales parafiscalesMensuales={parafiscalesMensuales} onActualizarMes={actualizarMesParafiscales} onAgregarTecnico={agregarTecnicoMensual} onActualizarTecnico={actualizarTecnicoMensual} onEliminarTecnico={eliminarTecnicoMensual} onImportarExcel={importarParafiscalesExcel} onClose={() => setMostrarParafiscalesMensuales(false)} />
+          <FloatingModal
+            isOpen={mostrarParafiscalesMensuales}
+            onClose={() => setMostrarParafiscalesMensuales(false)}
+            title="Parafiscales Mensuales"
+            icon="📋"
+            color="purple"
+            defaultWidth="max-w-6xl"
+          >
+            <ParafiscalesMensuales
+              parafiscalesMensuales={parafiscalesMensuales}
+              onActualizarMes={actualizarMesParafiscales}
+              onAgregarTecnico={agregarTecnicoMensual}
+              onActualizarTecnico={actualizarTecnicoMensual}
+              onEliminarTecnico={eliminarTecnicoMensual}
+              onImportarExcel={importarParafiscalesExcel}
+              onClose={() => setMostrarParafiscalesMensuales(false)}
+            />
           </FloatingModal>
         )}
 
         {/* 🆕 NUEVOS MODALES */}
         {mostrarDashboard && (
-          <FloatingModal 
-            isOpen={mostrarDashboard} 
-            onClose={() => setMostrarDashboard(false)} 
-            title="Dashboard de Métricas" 
-            icon="📊" 
-            color="purple" 
+          <FloatingModal
+            isOpen={mostrarDashboard}
+            onClose={() => setMostrarDashboard(false)}
+            title="Dashboard de Métricas"
+            icon="📊"
+            color="purple"
             defaultWidth="max-w-7xl"
           >
             <Dashboard productividad={productividad} />
@@ -1424,10 +1733,16 @@ ${parafiscalesMensuales.tecnicos
         <div className="mb-6">
           <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-blue-100">
             <div className="bg-gradient-to-r from-blue-600 to-orange-500 px-6 py-3">
-              <h2 className="text-white font-bold text-lg">Estadísticas de Productividad</h2>
+              <h2 className="text-white font-bold text-lg">
+                Estadísticas de Productividad
+              </h2>
             </div>
             <div className="p-6">
-              <Estadisticas hoyCount={stats.hoyCount} semanaCount={stats.semanaCount} mesCount={stats.mesCount} />
+              <Estadisticas
+                hoyCount={stats.hoyCount}
+                semanaCount={stats.semanaCount}
+                mesCount={stats.mesCount}
+              />
             </div>
           </div>
         </div>
@@ -1436,7 +1751,9 @@ ${parafiscalesMensuales.tecnicos
         <div className="mb-6">
           <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-orange-100">
             <div className="bg-gradient-to-r from-orange-500 to-blue-600 px-6 py-3">
-              <h2 className="text-white font-bold text-lg">⚡ Registro Rápido</h2>
+              <h2 className="text-white font-bold text-lg">
+                ⚡ Registro Rápido
+              </h2>
             </div>
             <div className="p-6">
               <RegistroRapido onRegistrar={registrarRapido} />
@@ -1448,7 +1765,9 @@ ${parafiscalesMensuales.tecnicos
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-blue-100">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3">
-              <h2 className="text-white font-bold text-lg">📝 Formulario de OT</h2>
+              <h2 className="text-white font-bold text-lg">
+                📝 Formulario de OT
+              </h2>
             </div>
             <div className="p-6">
               <Formulario
@@ -1460,14 +1779,16 @@ ${parafiscalesMensuales.tecnicos
                 sugerenciasCC={sugerenciasCC}
                 onAgregarCC={agregarCC}
                 onEliminarCC={eliminarCC}
-                onMostrarSelectorMultiple={() => setMostrarSelectorMultiple(true)}
+                onMostrarSelectorMultiple={() =>
+                  setMostrarSelectorMultiple(true)
+                }
                 archivoZip={archivoZip}
                 onArchivoZipChange={handleArchivoZip}
                 fileInputRef={fileInputRef}
                 onEliminarArchivo={() => {
                   setArchivoZip(null);
                   if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
+                    fileInputRef.current.value = "";
                   }
                 }}
                 onCopiarCorreo={copiarCorreo}
@@ -1481,24 +1802,31 @@ ${parafiscalesMensuales.tecnicos
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-orange-100">
               <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-3">
-                <h2 className="text-white font-bold text-lg">👁️ Vista Previa</h2>
+                <h2 className="text-white font-bold text-lg">
+                  👁️ Vista Previa
+                </h2>
               </div>
               <div className="p-6">
-                <VistaPrevia asunto={generarAsunto()} cuerpo={generarCuerpo()} />
+                <VistaPrevia
+                  asunto={generarAsunto()}
+                  cuerpo={generarCuerpo()}
+                />
               </div>
             </div>
-            
+
             <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-blue-100">
               <div className="bg-gradient-to-r from-blue-700 to-blue-800 px-6 py-3">
-                <h2 className="text-white font-bold text-lg">📊 Productividad Reciente</h2>
+                <h2 className="text-white font-bold text-lg">
+                  📊 Productividad Reciente
+                </h2>
               </div>
               <div className="p-6">
-                <Productividad 
-                  productividad={productividad} 
-                  onActualizarEstado={actualizarEstadoOT} 
-                  onActualizarRR={actualizarRR} 
+                <Productividad
+                  productividad={productividad}
+                  onActualizarEstado={actualizarEstadoOT}
+                  onActualizarRR={actualizarRR}
                   onActualizarObservaciones={actualizarObservaciones}
-                  onEliminarOT={eliminarOT} 
+                  onEliminarOT={eliminarOT}
                 />
               </div>
             </div>
@@ -1512,20 +1840,38 @@ ${parafiscalesMensuales.tecnicos
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8">
                   <svg viewBox="0 0 100 100" fill="none">
-                    <circle cx="50" cy="50" r="48" fill="white" fillOpacity="0.2"/>
-                    <path d="M 35 30 Q 50 25 65 30 Q 70 35 65 40 Q 50 45 50 50 Q 50 55 65 60 Q 70 65 65 70 Q 50 75 35 70" 
-                          stroke="white" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="48"
+                      fill="white"
+                      fillOpacity="0.2"
+                    />
+                    <path
+                      d="M 35 30 Q 50 25 65 30 Q 70 35 65 40 Q 50 45 50 50 Q 50 55 65 60 Q 70 65 65 70 Q 50 75 35 70"
+                      stroke="white"
+                      strokeWidth="4"
+                      fill="none"
+                      strokeLinecap="round"
+                    />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">Sistema de Agendamiento OT</p>
-                  <p className="text-xs opacity-80">Gestión Profesional de Órdenes de Trabajo</p>
+                  <p className="text-sm font-semibold">
+                    Sistema de Agendamiento OT
+                  </p>
+                  <p className="text-xs opacity-80">
+                    Gestión Profesional de Órdenes de Trabajo
+                  </p>
                 </div>
               </div>
-              
+
               <div className="text-center md:text-right">
                 <p className="text-sm font-semibold">
-                  📊 Registros: <span className="text-orange-300">{productividad.length}</span>
+                  📊 Registros:{" "}
+                  <span className="text-orange-300">
+                    {productividad.length}
+                  </span>
                 </p>
                 {productividad.length > 400 && (
                   <p className="text-xs text-orange-200 mt-1">
@@ -1539,30 +1885,57 @@ ${parafiscalesMensuales.tecnicos
 
         {/* Modales adicionales */}
         {mostrarSelectorMultiple && (
-          <ModalSelectorCC contactosGuardados={contactosGuardados} copiaCC={formData.copiaCC} onAgregar={agregarMultiplesCC} onClose={() => setMostrarSelectorMultiple(false)} onAbrirGestionContactos={() => { setMostrarSelectorMultiple(false); setMostrarGestionContactos(true); }} />
+          <ModalSelectorCC
+            contactosGuardados={contactosGuardados}
+            copiaCC={formData.copiaCC}
+            onAgregar={agregarMultiplesCC}
+            onClose={() => setMostrarSelectorMultiple(false)}
+            onAbrirGestionContactos={() => {
+              setMostrarSelectorMultiple(false);
+              setMostrarGestionContactos(true);
+            }}
+          />
         )}
 
         {mostrarPendientes && (
-          <OTsPendientes 
+          <OTsPendientes
             key={forceUpdatePendientes}
-            onClose={() => setMostrarPendientes(false)} 
-            onOTAgendada={handleOTAgendada} 
+            onClose={() => setMostrarPendientes(false)}
+            onOTAgendada={handleOTAgendada}
             onRegistrarEnProductividad={handleRegistrarPendienteEnProductividad}
             onActualizarProductividad={handleActualizarProductividad}
           />
         )}
 
         {mostrarZonificador && (
-          <FloatingModal isOpen={mostrarZonificador} onClose={() => setMostrarZonificador(false)} title="Zonificador Nacional - Buscador de Aliados" icon="🗺️" color="blue" defaultWidth="max-w-6xl" defaultHeight="max-h-[90vh]">
+          <FloatingModal
+            isOpen={mostrarZonificador}
+            onClose={() => setMostrarZonificador(false)}
+            title="Zonificador Nacional - Buscador de Aliados"
+            icon="🗺️"
+            color="blue"
+            defaultWidth="max-w-6xl"
+            defaultHeight="max-h-[90vh]"
+          >
             <ZonificadorMejorado />
           </FloatingModal>
         )}
 
-        {mostrarBusqueda && <BusquedaRapida productividad={productividad} onSeleccionarOT={handleSeleccionarOT} onClose={() => setMostrarBusqueda(false)} />}
+        {mostrarBusqueda && (
+          <BusquedaRapida
+            productividad={productividad}
+            onSeleccionarOT={handleSeleccionarOT}
+            onClose={() => setMostrarBusqueda(false)}
+          />
+        )}
 
-        {mostrarGuiaEscalamiento && <GuiaEscalamiento onClose={() => setMostrarGuiaEscalamiento(false)} />}
+        {mostrarGuiaEscalamiento && (
+          <GuiaEscalamiento onClose={() => setMostrarGuiaEscalamiento(false)} />
+        )}
 
-        {mostrarGestionPDT && <GestionPDT onClose={() => setMostrarGestionPDT(false)} />}
+        {mostrarGestionPDT && (
+          <GestionPDT onClose={() => setMostrarGestionPDT(false)} />
+        )}
       </div>
     </div>
   );
