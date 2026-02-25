@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 
 // ✅ COMPONENTES MODULARES
-import Autocheck from "./components/Autocheck";  // ← CORRECTO
+import Autocheck from "./Autocheck";  // ← CORRECTO
 import ConfiguracionZoho from "./components/ConfiguracionZoho";
 import Historial from "./components/Historial";
 import GestionContactos from "./components/GestionContactos";
