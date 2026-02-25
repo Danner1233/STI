@@ -18,9 +18,7 @@ import FloatingModal from "./components/FloatingModal";
 import BusquedaRapida from "./components/BusquedaRapida";
 import ZonificadorMejorado from "./components/ZonificadorMejorado";
 import GuiaEscalamiento from "./components/GuiaEscalamiento";
-import GestionPDT from "./components/GestionPDT";
-import { SERVICIOS_PDT } from "./constants/serviciosPDT";
-import { generarPDT, obtenerPlantillaPDT } from "./utils/generadorPDT";
+
 // 🆕 NUEVOS COMPONENTES
 import Dashboard from "./components/Dashboard";
 import ReportesAutomaticos from "./components/ReportesAutomaticos";
@@ -92,10 +90,6 @@ const AgendamientoOT = () => {
     contacto: "",
     telefono: "",
     tipoServicio: "ENTREGA DE SERVICIO",
-    servicioPDT: "",
-    generarPDT: null,
-    pdtSubido: false,
-    confirmoNoPDT: false,
     observaciones: "",
     duracion: "4-8 horas",
     consensus: false,
@@ -146,7 +140,6 @@ const AgendamientoOT = () => {
   const [mostrarZonificador, setMostrarZonificador] = useState(false);
   const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
   const [mostrarGuiaEscalamiento, setMostrarGuiaEscalamiento] = useState(false);
-  const [mostrarGestionPDT, setMostrarGestionPDT] = useState(false);
   // 🆕 NUEVOS ESTADOS
   const [mostrarDashboard, setMostrarDashboard] = useState(false);
   const [mostrarReportes, setMostrarReportes] = useState(false);
@@ -484,22 +477,28 @@ Queremos confirmarle la actividad de ${formData.tipoServicio.toUpperCase()} para
 
 Duracion de la actividad: ${formData.duracion}
 
-┌─────────────────────────────────────────────────────────────────────┐
-│ OT            FECHA           HORA      CIUDAD      DIRECCION       │
-├─────────────────────────────────────────────────────────────────────┤
-│ ${formData.numeroOT.padEnd(13)} ${fechaFormateada.padEnd(15)} ${formData.hora.padEnd(11)} ${formData.ciudad.padEnd(11)} ${formData.direccion.padEnd(15)} │
-└─────────────────────────────────────────────────────────────────────┘
+=======================================================================
+OT: ${formData.numeroOT}
+FECHA: ${fechaFormateada}
+HORA: ${formData.hora}
+CIUDAD: ${formData.ciudad}
+DIRECCION: ${formData.direccion}
+=======================================================================
 
 PARAFISCALES DE LOS TECNICOS:
 ${parafiscalesMensuales.tecnicos
   .map(
     (tec) =>
-      `${String(tec.nombre || "").padEnd(35)} CC: ${String(tec.cedula || "").padEnd(15)} EPS: ${String(tec.eps || "").padEnd(20)} ARL: ${String(tec.arl || "")}`,
+      `${String(tec.nombre || "")}
+CC: ${String(tec.cedula || "")}
+EPS: ${String(tec.eps || "")}
+ARL: ${String(tec.arl || "")}
+-----------------------------------------------------------------------`,
   )
   .join("\n")}`;
   };
 
-  const generarCuerpoHTML = () => {
+  const _generarCuerpoHTML = () => {
     const dias = [
       "Domingo",
       "Lunes",
@@ -646,177 +645,57 @@ ${parafiscalesMensuales.tecnicos
       });
   };
 
-  const descargarPlantillaPDTManual = async (servicioPDT) => {
+  const copiarCorreoHTML = async () => {
+    const camposFaltantes = [];
+    if (!formData.numeroOT) camposFaltantes.push("Número OT");
+    if (!formData.cliente) camposFaltantes.push("Cliente");
+
+    if (camposFaltantes.length > 0) {
+      alert(`⚠️ Completa: ${camposFaltantes.join(", ")}`);
+      return;
+    }
+
+    const asunto = generarAsunto();
+    const cuerpoHTML = _generarCuerpoHTML();
+
     try {
-      if (!servicioPDT) {
-        alert("⚠️ Selecciona un tipo de servicio PDT primero");
-        return;
-      }
+      // Crear un elemento temporal para copiar HTML
+      const blob = new Blob([cuerpoHTML], { type: "text/html" });
+      const clipboardItem = new ClipboardItem({ "text/html": blob });
 
-      const plantilla = await obtenerPlantillaPDT(servicioPDT);
+      await navigator.clipboard.write([clipboardItem]);
 
-      if (!plantilla) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+
+      alert(
+        "✅ Correo HTML copiado al portapapeles!\n\n" +
+          "📋 PASOS:\n" +
+          "1. Abre Outlook\n" +
+          "2. Nuevo correo\n" +
+          "3. Pega en el cuerpo (Ctrl+V)\n" +
+          "4. La tabla se verá perfectamente formateada\n\n" +
+          `📧 ASUNTO:\n${asunto}\n\n` +
+          `📨 PARA: ${formData.correoDestino}`,
+      );
+    } catch (err) {
+      // Fallback si no funciona el clipboard API
+      console.error("Error copiando HTML:", err);
+
+      // Copiar como texto plano como alternativa
+      const textoCompleto = `ASUNTO:\n${asunto}\n\n${cuerpoHTML}`;
+      navigator.clipboard.writeText(textoCompleto).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
         alert(
-          `⚠️ No hay plantilla configurada para: ${servicioPDT}\n\nPor favor, sube la plantilla en Gestión de PDTs`,
+          "✅ Correo copiado (texto)!\n\nPega en Outlook y formatea manualmente.",
         );
-        return;
-      }
-
-      if (!plantilla.base64) {
-        alert(
-          "⚠️ La plantilla existe pero no tiene el archivo. Intenta subirla de nuevo.",
-        );
-        return;
-      }
-
-      const datosOT = {
-        numeroOT: formData.numeroOT || "PLANTILLA",
-        cliente: formData.cliente || "CLIENTE",
-        fecha: new Date().toLocaleDateString("es-CO"),
-        ciudad: formData.ciudad || "",
-        direccion: formData.direccion || "",
-        servicio: servicioPDT,
-      };
-
-      const resultado = await generarPDT(datosOT, plantilla.base64);
-
-      if (resultado.success) {
-        console.log(`✅ Plantilla PDT descargada: ${resultado.nombreArchivo}`);
-        alert(
-          `✅ Plantilla descargada exitosamente\n\n` +
-            `Archivo: ${resultado.nombreArchivo}\n\n` +
-            `📝 Ahora:\n` +
-            `1. Abre el archivo Excel\n` +
-            `2. Completa todos los campos requeridos\n` +
-            `3. Guarda el archivo\n` +
-            `4. Adjúntalo al correo de la OT\n` +
-            `5. Marca el checkbox "✅ Ya adjunté el PDT"`,
-        );
-      } else {
-        console.error("Error generando plantilla PDT:", resultado.error);
-        alert(`⚠️ Error al descargar plantilla: ${resultado.error}`);
-      }
-    } catch (error) {
-      console.error("Error en descarga manual PDT:", error);
-      alert(`❌ Error inesperado: ${error.message}`);
+      });
     }
   };
 
-  React.useEffect(() => {
-    window.descargarPlantillaPDTManual = descargarPlantillaPDTManual;
-    return () => {
-      delete window.descargarPlantillaPDTManual;
-    };
-  }, [
-    formData.numeroOT,
-    formData.cliente,
-    formData.ciudad,
-    formData.direccion,
-  ]);
-
-  const enviarCorreoZoho = async () => {
-    if (
-      formData.generarPDT === null ||
-      formData.generarPDT === undefined ||
-      formData.generarPDT === ""
-    ) {
-      alert(
-        "🚨 VALIDACIÓN REQUERIDA 🚨\n\n" +
-          "Debes indicar si necesitas o NO un PDT para esta OT.\n\n" +
-          "Por favor:\n" +
-          "1. Revisa la sección 'PDT - Plan Técnico de Despliegue'\n" +
-          "2. Haz click en 'SÍ, necesito PDT' o 'NO necesito PDT'\n" +
-          "3. Intenta enviar el correo de nuevo\n\n" +
-          "⚠️ Esta validación es OBLIGATORIA para evitar olvidar PDTs importantes.",
-      );
-      return;
-    }
-
-    if (formData.generarPDT === true && !formData.servicioPDT) {
-      alert(
-        "⚠️ FALTA SELECCIONAR SERVICIO ⚠️\n\n" +
-          "Marcaste que SÍ necesitas PDT, pero no has seleccionado el tipo de servicio.\n\n" +
-          "Por favor:\n" +
-          "1. Selecciona el tipo de servicio en el dropdown\n" +
-          "2. Intenta enviar el correo de nuevo",
-      );
-      return;
-    }
-
-    if (
-      formData.generarPDT === true &&
-      formData.servicioPDT &&
-      !formData.pdtSubido
-    ) {
-      const confirmacionPDT = window.confirm(
-        "🚨 VALIDACIÓN CRÍTICA - PDT 🚨\n\n" +
-          `Esta OT REQUIERE un PDT del tipo "${formData.servicioPDT}"\n\n` +
-          "❌ NO has marcado que adjuntaste el PDT\n\n" +
-          "¿Realmente quieres enviar el correo SIN adjuntar el PDT?\n\n" +
-          "⚠️ CONSECUENCIAS:\n" +
-          "• El cliente NO recibirá el plan técnico\n" +
-          "• Puede haber retrasos en la implementación\n" +
-          "• Falta de documentación técnica obligatoria\n" +
-          "• Incumplimiento de procesos\n\n" +
-          "SI ya adjuntaste el PDT:\n" +
-          '→ Click "Cancelar" y marca el checkbox de confirmación\n\n' +
-          "SI NO has adjuntado el PDT:\n" +
-          '→ Click "Cancelar", descarga la plantilla, llénala y adjúntala\n\n' +
-          "¿Enviar de todas formas SIN PDT? (NO recomendado)",
-      );
-
-      if (!confirmacionPDT) {
-        alert(
-          "✅ Correo NO enviado.\n\n" +
-            "📋 Por favor:\n" +
-            `1. Descarga la plantilla PDT "${formData.servicioPDT}"\n` +
-            "2. Llena la plantilla con los datos de la OT\n" +
-            "3. Adjúntala al correo\n" +
-            "4. Marca el checkbox '✅ Ya adjunté el PDT'\n" +
-            "5. Intenta enviar de nuevo",
-        );
-        return;
-      }
-
-      const segundaConfirmacionPDT = window.confirm(
-        "🚨🚨🚨 ÚLTIMA ADVERTENCIA - PDT 🚨🚨🚨\n\n" +
-          "Estás a punto de enviar una OT que REQUIERE PDT sin adjuntarlo.\n\n" +
-          "Esto es una FALTA GRAVE de documentación.\n\n" +
-          "El correo quedará registrado como ENVIADO SIN PDT.\n\n" +
-          "¿REALMENTE quieres continuar sin adjuntar el PDT?",
-      );
-
-      if (!segundaConfirmacionPDT) {
-        alert(
-          "✅ Correo NO enviado.\n\n¡Gracias por verificar! Adjunta el PDT primero.",
-        );
-        return;
-      }
-
-      alert(
-        "⚠️ ENVIANDO SIN PDT ⚠️\n\n" +
-          "El correo se enviará PERO quedará registrado que NO se adjuntó el PDT.\n\n" +
-          "Recuerda enviar el PDT al cliente lo antes posible.",
-      );
-    }
-
-    if (formData.generarPDT === false && !formData.confirmoNoPDT) {
-      alert(
-        "⚠️ CONFIRMACIÓN REQUERIDA ⚠️\n\n" +
-          "Has indicado que esta OT NO necesita PDT.\n\n" +
-          "Debes confirmar explícitamente marcando el checkbox:\n" +
-          '"✅ Confirmo que esta OT NO requiere PDT"\n\n' +
-          "Tipo de servicio: " +
-          formData.tipoServicio +
-          "\n" +
-          "Cliente: " +
-          formData.cliente +
-          "\n\n" +
-          "Por favor marca el checkbox de confirmación antes de enviar.",
-      );
-      return;
-    }
-
+  const enviarCorreoOutlook = async () => {
+    // Validación de Consensus
     if (!formData.consensus) {
       const confirmacion = window.confirm(
         "⚠️⚠️⚠️ ATENCIÓN URGENTE ⚠️⚠️⚠️\n\n" +
@@ -851,65 +730,82 @@ ${parafiscalesMensuales.tecnicos
         );
         return;
       }
-
-      alert(
-        "⚠️ ENVIANDO SIN CONSENSUS ⚠️\n\n" +
-          "El correo se enviará pero quedará registrado que NO fue agendado en Consensus.\n\n" +
-          "Recuerda agendarlo después para evitar problemas.",
-      );
     }
 
-    if (!zohoConfig.email || !zohoConfig.password) {
-      alert("Configura tus credenciales SMTP primero");
-      setMostrarConfigZoho(true);
-      return;
-    }
-
+    // Generar datos del correo
+    const asunto = generarAsunto();
+    const cuerpoHTML = -_generarCuerpoHTML();
+    
+    // Copiar HTML al portapapeles
     try {
-      const emailData = {
-        fromAddress: zohoConfig.fromEmail || zohoConfig.email,
-        toAddress: formData.correoDestino,
-        cc: formData.copiaCC.map((c) => c.email).join(", "),
-        subject: generarAsunto(),
-        content: generarCuerpoHTML(),
-      };
-
-      if (archivoZip) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          emailData.attachments = [
-            {
-              attachmentName: archivoZip.name,
-              content: e.target.result.split(",")[1],
-            },
-          ];
-          await enviarCorreoConBackend(emailData);
-        };
-        reader.readAsDataURL(archivoZip);
-      } else {
-        await enviarCorreoConBackend(emailData);
-      }
+      const blob = new Blob([cuerpoHTML], { type: 'text/html' });
+      const clipboardItem = new ClipboardItem({ 'text/html': blob });
+      await navigator.clipboard.write([clipboardItem]);
+      console.log('✅ HTML copiado al portapapeles');
     } catch (err) {
-      console.error("Error al enviar correo:", err);
-      alert("Error al enviar el correo");
+      console.error('Error copiando HTML:', err);
+      await navigator.clipboard.writeText(cuerpoHTML);
     }
-  };
 
-  const enviarCorreoConBackend = async (emailData) => {
-    const response = await fetch("http://localhost:3001/api/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        smtpConfig: { email: zohoConfig.email, password: zohoConfig.password },
-        emailData: emailData,
-      }),
-    });
+    // Crear URL de Outlook Web - MÉTODO CORRECTO
+    const destinatario = encodeURIComponent(formData.correoDestino);
+    const asuntoEncoded = encodeURIComponent(asunto);
+    const ccEncoded = encodeURIComponent(formData.copiaCC.map(c => c.email).join(';'));
 
-    if (response.ok) {
-      alert("✓ Correo enviado!");
-      registrarEnvio();
+    // URL CORRECTA para Outlook Web
+    let outlookUrl = `https://outlook.office.com/mail/0/deeplink/compose?to=${destinatario}&subject=${asuntoEncoded}`;
+    
+    if (formData.copiaCC.length > 0) {
+      outlookUrl += `&cc=${ccEncoded}`;
     }
-  };
+
+    console.log('🔗 URL generada:', outlookUrl);
+
+    // Abrir Outlook Web
+    const ventana = window.open(outlookUrl, '_blank');
+
+    if (!ventana || ventana.closed || typeof ventana.closed === 'undefined') {
+      // Bloqueador de pop-ups
+      alert(
+        "🚫 BLOQUEADOR DE POP-UPS\n\n" +
+        "Permite pop-ups para este sitio.\n\n" +
+        "📋 DATOS COPIADOS:\n" +
+        `Para: ${formData.correoDestino}\n` +
+        `CC: ${formData.copiaCC.map(c => c.email).join(', ')}\n` +
+        `Asunto: ${asunto}\n\n` +
+        "Abre Outlook Web manualmente y pega el cuerpo (Ctrl+V)"
+      );
+    } else {
+      // Mostrar instrucciones
+      setTimeout(() => {
+        alert(
+          "✅ Outlook Web abierto\n\n" +
+          "📋 VERIFICAR:\n" +
+          `✓ Para: ${formData.correoDestino}\n` +
+          `✓ Asunto: ${asunto.substring(0, 50)}...\n` +
+          `✓ CC: ${formData.copiaCC.length} contactos\n\n` +
+          "📝 PASOS:\n" +
+          "1. Click en el cuerpo del correo\n" +
+          "2. Ctrl+V para pegar\n" +
+          "3. ✅ Tabla aparece con formato\n" +
+          "4. Revisar y dar 'Enviar'"
+        );
+      }, 1500);
+
+      // Confirmar registro
+      setTimeout(() => {
+        const confirmarRegistro = window.confirm(
+          "📧 ¿Ya enviaste el correo?\n\n" +
+          "• Aceptar → Se registra en productividad\n" +
+          "• Cancelar → No se registra"
+        );
+
+        if (confirmarRegistro) {
+          registrarEnvio();
+        }
+      }, 4000);
+    }
+  };;
 
   const registrarEnvio = async () => {
     const otExistente = productividad.find(
@@ -988,10 +884,6 @@ ${parafiscalesMensuales.tecnicos
       contacto: "",
       telefono: "",
       tipoServicio: "ENTREGA DE SERVICIO",
-      servicioPDT: "",
-      generarPDT: null,
-      pdtSubido: false,
-      confirmoNoPDT: false,
       observaciones: "",
       duracion: "4-8 horas",
       consensus: false,
@@ -1363,16 +1255,6 @@ ${parafiscalesMensuales.tecnicos
                         <span>Configuración Zoho</span>
                       </button>
                       <button
-                        onClick={() => setMostrarGestionPDT(true)}
-                        className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
-                      >
-                        <FileSpreadsheet
-                          size={16}
-                          className="text-emerald-600"
-                        />
-                        <span>Gestión PDTs</span>
-                      </button>
-                      <button
                         onClick={() => setMostrarHistorial(true)}
                         className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-3 text-gray-700"
                       >
@@ -1522,17 +1404,6 @@ ${parafiscalesMensuales.tecnicos
                 >
                   <Settings size={20} />
                   Configuración Zoho
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMostrarGestionPDT(true);
-                    setMostrarMenu(false);
-                  }}
-                  className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition backdrop-blur-sm"
-                >
-                  <FileSpreadsheet size={20} />
-                  Gestión PDTs
                 </button>
 
                 <button
@@ -1791,8 +1662,9 @@ ${parafiscalesMensuales.tecnicos
                     fileInputRef.current.value = "";
                   }
                 }}
+                onCopiarCorreoHTML={copiarCorreoHTML}
                 onCopiarCorreo={copiarCorreo}
-                onEnviarCorreo={enviarCorreoZoho}
+                onEnviarCorreo={enviarCorreoOutlook} // ← NUEVO: Usa Outlook
                 copied={copied}
                 registrado={registrado}
               />
@@ -1931,10 +1803,6 @@ ${parafiscalesMensuales.tecnicos
 
         {mostrarGuiaEscalamiento && (
           <GuiaEscalamiento onClose={() => setMostrarGuiaEscalamiento(false)} />
-        )}
-
-        {mostrarGestionPDT && (
-          <GestionPDT onClose={() => setMostrarGestionPDT(false)} />
         )}
       </div>
     </div>
