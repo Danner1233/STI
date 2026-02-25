@@ -498,7 +498,7 @@ ARL: ${String(tec.arl || "")}
   .join("\n")}`;
   };
 
-  const _generarCuerpoHTML = () => {
+  const generarCuerpoHTML = () => {
     const dias = [
       "Domingo",
       "Lunes",
@@ -656,7 +656,7 @@ ARL: ${String(tec.arl || "")}
     }
 
     const asunto = generarAsunto();
-    const cuerpoHTML = _generarCuerpoHTML();
+    const cuerpoHTML = generarCuerpoHTML();
 
     try {
       // Crear un elemento temporal para copiar HTML
@@ -734,7 +734,7 @@ ARL: ${String(tec.arl || "")}
 
     // Generar datos del correo
     const asunto = generarAsunto();
-    const cuerpoHTML = -_generarCuerpoHTML();
+    const cuerpoHTML = generarCuerpoHTML();
     
     // Copiar HTML al portapapeles
     try {
@@ -747,12 +747,11 @@ ARL: ${String(tec.arl || "")}
       await navigator.clipboard.writeText(cuerpoHTML);
     }
 
-    // Crear URL de Outlook Web - MÉTODO CORRECTO
+    // Crear URL de Outlook Web
     const destinatario = encodeURIComponent(formData.correoDestino);
     const asuntoEncoded = encodeURIComponent(asunto);
     const ccEncoded = encodeURIComponent(formData.copiaCC.map(c => c.email).join(';'));
 
-    // URL CORRECTA para Outlook Web
     let outlookUrl = `https://outlook.office.com/mail/0/deeplink/compose?to=${destinatario}&subject=${asuntoEncoded}`;
     
     if (formData.copiaCC.length > 0) {
@@ -805,7 +804,7 @@ ARL: ${String(tec.arl || "")}
         }
       }, 4000);
     }
-  };;
+  };
 
   const registrarEnvio = async () => {
     const otExistente = productividad.find(

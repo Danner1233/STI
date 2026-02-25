@@ -439,7 +439,7 @@ const Formulario = ({
             {formData.consensus
               ? registrado
                 ? "✓ Enviado"
-                : "📧 Abrir en Outlook (texto simple)"
+                : "📧 Abrir en Outlook Web"
               : "⚠️ Abrir SIN Consensus"}
           </button>
         </div>
