@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 
 // ✅ COMPONENTES MODULARES
-import Autocheck from "./autocheck";  // ← CORRECTO
+import Autocheck from "./autocheck"; // ← CORRECTO
 import ConfiguracionZoho from "./components/ConfiguracionZoho";
 import Historial from "./components/Historial";
 import GestionContactos from "./components/GestionContactos";
@@ -735,59 +735,61 @@ ARL: ${String(tec.arl || "")}
     // Generar datos del correo
     const asunto = generarAsunto();
     const cuerpoHTML = generarCuerpoHTML();
-    
+
     // Copiar HTML al portapapeles
     try {
-      const blob = new Blob([cuerpoHTML], { type: 'text/html' });
-      const clipboardItem = new ClipboardItem({ 'text/html': blob });
+      const blob = new Blob([cuerpoHTML], { type: "text/html" });
+      const clipboardItem = new ClipboardItem({ "text/html": blob });
       await navigator.clipboard.write([clipboardItem]);
-      console.log('✅ HTML copiado al portapapeles');
+      console.log("✅ HTML copiado al portapapeles");
     } catch (err) {
-      console.error('Error copiando HTML:', err);
+      console.error("Error copiando HTML:", err);
       await navigator.clipboard.writeText(cuerpoHTML);
     }
 
     // Crear URL de Outlook Web
     const destinatario = encodeURIComponent(formData.correoDestino);
     const asuntoEncoded = encodeURIComponent(asunto);
-    const ccEncoded = encodeURIComponent(formData.copiaCC.map(c => c.email).join(';'));
+    const ccEncoded = encodeURIComponent(
+      formData.copiaCC.map((c) => c.email).join(";"),
+    );
 
     let outlookUrl = `https://outlook.office.com/mail/0/deeplink/compose?to=${destinatario}&subject=${asuntoEncoded}`;
-    
+
     if (formData.copiaCC.length > 0) {
       outlookUrl += `&cc=${ccEncoded}`;
     }
 
-    console.log('🔗 URL generada:', outlookUrl);
+    console.log("🔗 URL generada:", outlookUrl);
 
     // Abrir Outlook Web
-    const ventana = window.open(outlookUrl, '_blank');
+    const ventana = window.open(outlookUrl, "_blank");
 
-    if (!ventana || ventana.closed || typeof ventana.closed === 'undefined') {
+    if (!ventana || ventana.closed || typeof ventana.closed === "undefined") {
       // Bloqueador de pop-ups
       alert(
         "🚫 BLOQUEADOR DE POP-UPS\n\n" +
-        "Permite pop-ups para este sitio.\n\n" +
-        "📋 DATOS COPIADOS:\n" +
-        `Para: ${formData.correoDestino}\n` +
-        `CC: ${formData.copiaCC.map(c => c.email).join(', ')}\n` +
-        `Asunto: ${asunto}\n\n` +
-        "Abre Outlook Web manualmente y pega el cuerpo (Ctrl+V)"
+          "Permite pop-ups para este sitio.\n\n" +
+          "📋 DATOS COPIADOS:\n" +
+          `Para: ${formData.correoDestino}\n` +
+          `CC: ${formData.copiaCC.map((c) => c.email).join(", ")}\n` +
+          `Asunto: ${asunto}\n\n` +
+          "Abre Outlook Web manualmente y pega el cuerpo (Ctrl+V)",
       );
     } else {
       // Mostrar instrucciones
       setTimeout(() => {
         alert(
           "✅ Outlook Web abierto\n\n" +
-          "📋 VERIFICAR:\n" +
-          `✓ Para: ${formData.correoDestino}\n` +
-          `✓ Asunto: ${asunto.substring(0, 50)}...\n` +
-          `✓ CC: ${formData.copiaCC.length} contactos\n\n` +
-          "📝 PASOS:\n" +
-          "1. Click en el cuerpo del correo\n" +
-          "2. Ctrl+V para pegar\n" +
-          "3. ✅ Tabla aparece con formato\n" +
-          "4. Revisar y dar 'Enviar'"
+            "📋 VERIFICAR:\n" +
+            `✓ Para: ${formData.correoDestino}\n` +
+            `✓ Asunto: ${asunto.substring(0, 50)}...\n` +
+            `✓ CC: ${formData.copiaCC.length} contactos\n\n` +
+            "📝 PASOS:\n" +
+            "1. Click en el cuerpo del correo\n" +
+            "2. Ctrl+V para pegar\n" +
+            "3. ✅ Tabla aparece con formato\n" +
+            "4. Revisar y dar 'Enviar'",
         );
       }, 1500);
 
@@ -795,8 +797,8 @@ ARL: ${String(tec.arl || "")}
       setTimeout(() => {
         const confirmarRegistro = window.confirm(
           "📧 ¿Ya enviaste el correo?\n\n" +
-          "• Aceptar → Se registra en productividad\n" +
-          "• Cancelar → No se registra"
+            "• Aceptar → Se registra en productividad\n" +
+            "• Cancelar → No se registra",
         );
 
         if (confirmarRegistro) {
@@ -1190,13 +1192,22 @@ ARL: ${String(tec.arl || "")}
                 {pendientesCount > 0 && (
                   <button
                     onClick={() => setMostrarPendientes(true)}
-                    className="relative bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                    className={`relative px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center gap-2 ${
+                      pendientesCount > 0
+                        ? "bg-orange-500 hover:bg-orange-600 text-white"
+                        : "bg-white/10 hover:bg-white/20 text-white"
+                    }`}
                   >
-                    <Bell size={18} className="animate-pulse" />
+                    <Bell
+                      size={18}
+                      className={pendientesCount > 0 ? "animate-pulse" : ""}
+                    />
                     <span className="font-semibold">{pendientesCount}</span>
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
-                      !
-                    </span>
+                    {pendientesCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
+                        !
+                      </span>
+                    )}
                   </button>
                 )}
 
@@ -1332,13 +1343,23 @@ ARL: ${String(tec.arl || "")}
                       setMostrarPendientes(true);
                       setMostrarMenu(false);
                     }}
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-between transition shadow-lg"
+                    className={`w-full font-semibold py-3 px-4 rounded-lg flex items-center justify-between transition shadow-lg ${
+                      pendientesCount > 0
+                        ? "bg-orange-500 hover:bg-orange-600 text-white"
+                        : "bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm"
+                    }`}
                   >
                     <span className="flex items-center gap-3">
                       <Bell size={20} />
                       OTs Pendientes
                     </span>
-                    <span className="bg-white text-orange-600 rounded-full px-3 py-1 text-sm font-bold">
+                    <span
+                      className={`rounded-full px-3 py-1 text-sm font-bold ${
+                        pendientesCount > 0
+                          ? "bg-white text-orange-600"
+                          : "bg-white/20 text-white"
+                      }`}
+                    >
                       {pendientesCount}
                     </span>
                   </button>
