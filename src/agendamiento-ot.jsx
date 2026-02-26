@@ -1189,27 +1189,26 @@ ARL: ${String(tec.arl || "")}
 
               {/* Notificaciones (Desktop) */}
               <div className="hidden lg:flex items-center gap-3">
-                {pendientesCount > 0 && (
-                  <button
-                    onClick={() => setMostrarPendientes(true)}
-                    className={`relative px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center gap-2 ${
-                      pendientesCount > 0
-                        ? "bg-orange-500 hover:bg-orange-600 text-white"
-                        : "bg-white/10 hover:bg-white/20 text-white"
-                    }`}
-                  >
-                    <Bell
-                      size={18}
-                      className={pendientesCount > 0 ? "animate-pulse" : ""}
-                    />
-                    <span className="font-semibold">{pendientesCount}</span>
-                    {pendientesCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
-                        !
-                      </span>
-                    )}
-                  </button>
-                )}
+                {/* Botón OTs Pendientes - SIEMPRE VISIBLE */}
+                <button
+                  onClick={() => setMostrarPendientes(true)}
+                  className={`relative px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center gap-2 ${
+                    pendientesCount > 0
+                      ? "bg-orange-500 hover:bg-orange-600 text-white"
+                      : "bg-white/10 hover:bg-white/20 text-white"
+                  }`}
+                >
+                  <Bell
+                    size={18}
+                    className={pendientesCount > 0 ? "animate-pulse" : ""}
+                  />
+                  <span className="font-semibold">{pendientesCount}</span>
+                  {pendientesCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
+                      !
+                    </span>
+                  )}
+                </button>
 
                 {/* Botón de Búsqueda */}
                 <button
