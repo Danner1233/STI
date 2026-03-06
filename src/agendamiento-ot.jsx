@@ -247,6 +247,10 @@ const AgendamientoOT = () => {
     }
   }, [productividad]);
 
+  
+
+  // 🆕 ESCUCHAR MENSAJES DEL POPUP
+
   // ========== HANDLERS ==========
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -1111,6 +1115,46 @@ ARL: ${String(tec.arl || "")}
     );
   };
 
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.origin !== window.location.origin) return;
+
+      const { action, ot, numeroOT } = event.data;
+
+      switch (action) {
+        case "nueva-ot-pendiente": {
+          console.log("✅ Nueva OT pendiente registrada desde popup:", ot);
+          setForceUpdatePendientes((prev) => prev + 1);
+          break;
+        }
+
+        case "eliminar-ot-pendiente": {
+          console.log("🗑️ OT eliminada desde popup:", numeroOT);
+          setForceUpdatePendientes((prev) => prev + 1);
+          break;
+        }
+
+        case "agendar-ot": {
+          console.log("📝 Agendar OT desde popup:", numeroOT);
+          const pendientes = JSON.parse(
+            localStorage.getItem("ots-pendientes") || "[]",
+          );
+          const otPendiente = pendientes.find((p) => p.numeroOT === numeroOT);
+          if (otPendiente) {
+            handleOTAgendada(otPendiente);
+          }
+          break;
+        }
+
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
   const handleRegistrarPendienteEnProductividad = (registroProductividad) => {
     setProductividad((prev) => [registroProductividad, ...prev]);
     console.log(
@@ -1164,6 +1208,435 @@ ARL: ${String(tec.arl || "")}
     localStorage.getItem("ots-pendientes") || "[]",
   ).length;
 
+  // 🆕 ========== POPUP FLOTANTE PERSISTENTE ==========
+  // Variable global para controlar la ventana
+  const ventanaPendientesRef = useRef(null);
+  const intervaloReaperturaRef = useRef(null);
+
+  const abrirPopupFlotante = () => {
+    // Si ya existe y está abierta, solo enfocarla
+    if (ventanaPendientesRef.current && !ventanaPendientesRef.current.closed) {
+      ventanaPendientesRef.current.focus();
+      return;
+    }
+
+    // 🆕 VENTANA MINI - Solo una esquinita
+    const width = 280;
+    const height = 400;
+    const left = window.screen.width - width - 10;
+    const top = window.screen.height - height - 60;
+
+    // Abrir ventana popup
+    ventanaPendientesRef.current = window.open(
+      "",
+      "OTsPendientes",
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`,
+    );
+
+    if (!ventanaPendientesRef.current) {
+      alert("🚫 Permite pop-ups para este sitio");
+      return;
+    }
+
+    const popup = ventanaPendientesRef.current;
+
+    popup.document.open();
+    popup.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>OTs</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: Arial, sans-serif;
+          background: #f97316;
+          height: 100vh;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          font-size: 12px;
+        }
+        .header {
+          background: #dc2626;
+          color: white;
+          padding: 8px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .header h1 {
+          font-size: 13px;
+          font-weight: bold;
+        }
+        .contador {
+          background: white;
+          color: #dc2626;
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-weight: bold;
+          font-size: 11px;
+          margin-left: 5px;
+        }
+        .btn-refresh {
+          background: #3b82f6;
+          color: white;
+          border: none;
+          padding: 4px 8px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 11px;
+        }
+        .tabs {
+          display: flex;
+          background: white;
+        }
+        .tab {
+          flex: 1;
+          padding: 6px;
+          background: #f3f4f6;
+          border: none;
+          cursor: pointer;
+          font-weight: bold;
+          font-size: 10px;
+        }
+        .tab.active {
+          background: white;
+          color: #f97316;
+          border-bottom: 2px solid #f97316;
+        }
+        .content {
+          flex: 1;
+          overflow-y: auto;
+          background: white;
+          padding: 8px;
+        }
+        .form-group {
+          margin-bottom: 8px;
+        }
+        .form-group label {
+          display: block;
+          font-weight: bold;
+          margin-bottom: 2px;
+          font-size: 10px;
+        }
+        .form-group input {
+          width: 100%;
+          padding: 5px;
+          border: 1px solid #d1d5db;
+          border-radius: 3px;
+          font-size: 11px;
+        }
+        .btn {
+          width: 100%;
+          padding: 6px;
+          border: none;
+          border-radius: 4px;
+          font-weight: bold;
+          cursor: pointer;
+          font-size: 10px;
+          margin-top: 4px;
+        }
+        .btn-primary {
+          background: #22c55e;
+          color: white;
+        }
+        .btn-danger {
+          background: #dc2626;
+          color: white;
+        }
+        .btn-secondary {
+          background: #f97316;
+          color: white;
+        }
+        .ot-card {
+          background: #fff;
+          border: 2px solid #f97316;
+          border-radius: 4px;
+          padding: 6px;
+          margin-bottom: 6px;
+        }
+        .ot-numero {
+          font-size: 12px;
+          font-weight: bold;
+          color: #dc2626;
+          margin-bottom: 3px;
+        }
+        .ot-info {
+          font-size: 10px;
+          color: #666;
+          margin-bottom: 3px;
+        }
+        .empty {
+          text-align: center;
+          padding: 15px 5px;
+          color: #666;
+        }
+        .empty-icon {
+          font-size: 30px;
+        }
+        .success {
+          background: #d1fae5;
+          color: #065f46;
+          padding: 6px;
+          border-radius: 3px;
+          margin-bottom: 8px;
+          text-align: center;
+          font-size: 10px;
+        }
+        .warning {
+          background: #fef3c7;
+          color: #92400e;
+          padding: 6px;
+          border-radius: 3px;
+          margin-bottom: 6px;
+          text-align: center;
+          font-size: 10px;
+        }
+        .hidden { display: none; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>🔔 OTs<span class="contador" id="contador">0</span></h1>
+        <button class="btn-refresh" id="btnRefresh">🔄</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" id="tabLista">📋 Lista</button>
+        <button class="tab" id="tabNueva">➕ Nueva</button>
+      </div>
+
+      <div id="contentLista" class="content"></div>
+
+      <div id="contentNueva" class="content hidden">
+        <div id="mensaje" class="hidden"></div>
+        
+        <form id="formRegistro">
+          <div class="form-group">
+            <label>OT *</label>
+            <input type="text" id="numeroOT" required placeholder="22680001">
+          </div>
+          
+          <div class="form-group">
+            <label>Líder *</label>
+            <input type="text" id="lider" required placeholder="Nombre">
+          </div>
+          
+          <button type="submit" class="btn btn-primary">✅ REGISTRAR</button>
+        </form>
+      </div>
+
+      <script>
+        // Variables globales
+        var currentTab = 'lista';
+
+        // Actualizar contenido
+        function actualizar() {
+          var pendientes = JSON.parse(localStorage.getItem('ots-pendientes') || '[]');
+          document.getElementById('contador').textContent = pendientes.length;
+          
+          var html = '';
+          if (pendientes.length === 0) {
+            html = '<div class="empty"><div class="empty-icon">✅</div><p>Sin OTs</p></div>';
+          } else {
+            html = '<div class="warning">⚠️ ' + pendientes.length + ' OT(s)</div>';
+            
+            pendientes.forEach(function(ot) {
+              html += '<div class="ot-card">';
+              html += '<div class="ot-numero">OT ' + ot.numeroOT + '</div>';
+              html += '<div class="ot-info">Líder: ' + (ot.lider || 'N/A') + '</div>';
+              html += '<button class="btn btn-secondary" data-ot="' + ot.numeroOT + '" data-action="agendar">✏️ AGENDAR</button>';
+              html += '<button class="btn btn-danger" data-ot="' + ot.numeroOT + '" data-action="eliminar">🗑️ ELIMINAR</button>';
+              html += '</div>';
+            });
+          }
+          
+          document.getElementById('contentLista').innerHTML = html;
+          
+          // Agregar eventos a botones
+          var botones = document.querySelectorAll('[data-action]');
+          botones.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var action = this.getAttribute('data-action');
+              var numeroOT = this.getAttribute('data-ot');
+              
+              if (action === 'eliminar') {
+                eliminarOT(numeroOT);
+              } else if (action === 'agendarar') {
+                agendarOT(numeroOT);
+              }
+            });
+          });
+        }
+
+        // Cambiar pestaña
+        function cambiarTab(tab) {
+          currentTab = tab;
+          
+          document.getElementById('tabLista').classList.remove('active');
+          document.getElementById('tabNueva').classList.remove('active');
+          document.getElementById('contentLista').classList.add('hidden');
+          document.getElementById('contentNueva').classList.add('hidden');
+          
+          if (tab === 'lista') {
+            document.getElementById('tabLista').classList.add('active');
+            document.getElementById('contentLista').classList.remove('hidden');
+            actualizar();
+          } else {
+            document.getElementById('tabNueva').classList.add('active');
+            document.getElementById('contentNueva').classList.remove('hidden');
+          }
+        }
+
+        // Registrar OT
+        function registrarOT(e) {
+          e.preventDefault();
+          
+          var numeroOT = document.getElementById('numeroOT').value.trim();
+          var lider = document.getElementById('lider').value.trim();
+          
+          if (!numeroOT || !lider) {
+            alert('⚠️ Completa todos los campos');
+            return;
+          }
+          
+          var pendientes = JSON.parse(localStorage.getItem('ots-pendientes') || '[]');
+          
+          var existe = pendientes.some(function(ot) {
+            return ot.numeroOT === numeroOT;
+          });
+          
+          if (existe) {
+            alert('⚠️ OT ' + numeroOT + ' ya existe');
+            return;
+          }
+          
+          var nuevaOT = {
+            numeroOT: numeroOT,
+            lider: lider,
+            fechaRegistro: new Date().toISOString()
+          };
+          
+          pendientes.unshift(nuevaOT);
+          localStorage.setItem('ots-pendientes', JSON.stringify(pendientes));
+          
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({ 
+              action: 'nueva-ot-pendiente', 
+              ot: nuevaOT 
+            }, '*');
+          }
+          
+          document.getElementById('mensaje').textContent = '✅ OT registrada';
+          document.getElementById('mensaje').className = 'success';
+          document.getElementById('numeroOT').value = '';
+          document.getElementById('lider').value = '';
+          
+          setTimeout(function() {
+            document.getElementById('mensaje').classList.add('hidden');
+            cambiarTab('lista');
+          }, 1500);
+        }
+
+        // Eliminar OT
+        function eliminarOT(numeroOT) {
+          if (!confirm('¿Eliminar OT ' + numeroOT + '?')) return;
+          
+          var pendientes = JSON.parse(localStorage.getItem('ots-pendientes') || '[]');
+          pendientes = pendientes.filter(function(ot) {
+            return ot.numeroOT !== numeroOT;
+          });
+          localStorage.setItem('ots-pendientes', JSON.stringify(pendientes));
+          
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({ 
+              action: 'eliminar-ot-pendiente', 
+              numeroOT: numeroOT 
+            }, '*');
+          }
+          
+          actualizar();
+        }
+
+        // Agendar OT
+        function agendarOT(numeroOT) {
+          if (window.opener && !window.opener.closed) {
+            window.opener.focus();
+            window.opener.postMessage({ 
+              action: 'agendar-ot', 
+              numeroOT: numeroOT 
+            }, '*');
+          } else {
+            alert('⚠️ Ventana principal cerrada');
+          }
+        }
+
+        // Event listeners
+        document.getElementById('btnRefresh').addEventListener('click', actualizar);
+        document.getElementById('tabLista').addEventListener('click', function() { cambiarTab('lista'); });
+        document.getElementById('tabNueva').addEventListener('click', function() { cambiarTab('nueva'); });
+        document.getElementById('formRegistro').addEventListener('submit', registrarOT);
+
+        // Actualizar cada 30 segundos
+        setInterval(actualizar, 30000);
+
+        // Cargar inicial
+        actualizar();
+
+        // Confirmación al cerrar
+        window.onbeforeunload = function(e) {
+          var pendientes = JSON.parse(localStorage.getItem('ots-pendientes') || '[]');
+          if (pendientes.length > 0) {
+            return 'Hay ' + pendientes.length + ' OT(s) pendientes';
+          }
+        };
+      </script>
+    </body>
+    </html>
+  `);
+    popup.document.close();
+
+    // REAPERTURA AUTOMÁTICA
+    if (intervaloReaperturaRef.current) {
+      clearInterval(intervaloReaperturaRef.current);
+    }
+
+    intervaloReaperturaRef.current = setInterval(() => {
+      const pendientesActuales = JSON.parse(
+        localStorage.getItem("ots-pendientes") || "[]",
+      );
+
+      if (pendientesActuales.length > 0) {
+        if (
+          !ventanaPendientesRef.current ||
+          ventanaPendientesRef.current.closed
+        ) {
+          abrirPopupFlotante();
+        }
+      } else {
+        if (intervaloReaperturaRef.current) {
+          clearInterval(intervaloReaperturaRef.current);
+          intervaloReaperturaRef.current = null;
+        }
+      }
+    }, 3000);
+  };
+
+  const detenerPopupPersistente = () => {
+    if (intervaloReaperturaRef.current) {
+      clearInterval(intervaloReaperturaRef.current);
+      intervaloReaperturaRef.current = null;
+    }
+    if (ventanaPendientesRef.current && !ventanaPendientesRef.current.closed) {
+      ventanaPendientesRef.current.close();
+    }
+    alert("✅ Popup persistente detenido");
+  };
+  // ========== FIN POPUP FLOTANTE ==========
+
   // ========== RENDER ==========
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-orange-50">
@@ -1209,6 +1682,20 @@ ARL: ${String(tec.arl || "")}
                     </span>
                   )}
                 </button>
+
+                {/* 🆕 BOTÓN POPUP FLOTANTE */}
+                {pendientesCount > 0 && (
+                  <button
+                    onClick={abrirPopupFlotante}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                    title="Abrir ventana flotante persistente"
+                  >
+                    <span className="text-lg">🪟</span>
+                    <span className="font-semibold hidden xl:inline">
+                      Popup Flotante
+                    </span>
+                  </button>
+                )}
 
                 {/* Botón de Búsqueda */}
                 <button
@@ -1363,7 +1850,6 @@ ARL: ${String(tec.arl || "")}
                     </span>
                   </button>
                 )}
-
                 <button
                   onClick={() => {
                     setMostrarBusqueda(true);
@@ -1374,9 +1860,20 @@ ARL: ${String(tec.arl || "")}
                   <Search size={20} />
                   Búsqueda Rápida
                 </button>
-
+                {/* 🆕 BOTÓN POPUP FLOTANTE MÓVIL */}
+                {pendientesCount > 0 && (
+                  <button
+                    onClick={() => {
+                      abrirPopupFlotante();
+                      setMostrarMenu(false);
+                    }}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center gap-3 transition shadow-lg"
+                  >
+                    <span className="text-xl">🪟</span>
+                    <span>Popup Flotante Persistente</span>
+                  </button>
+                )}
                 <div className="h-px bg-white/20 my-2"></div>
-
                 {/* 🆕 NUEVOS BOTONES MÓVIL */}
                 <button
                   onClick={() => {
@@ -1388,7 +1885,6 @@ ARL: ${String(tec.arl || "")}
                   <BarChart3 size={20} />
                   Dashboard
                 </button>
-
                 <button
                   onClick={() => {
                     setMostrarReportes(true);
@@ -1399,7 +1895,6 @@ ARL: ${String(tec.arl || "")}
                   <Mail size={20} />
                   Reportes Automáticos
                 </button>
-
                 <button
                   onClick={() => {
                     setMostrarPlantillas(true);
@@ -1410,9 +1905,7 @@ ARL: ${String(tec.arl || "")}
                   <FileText size={20} />
                   Plantillas
                 </button>
-
                 <div className="h-px bg-white/20 my-2"></div>
-
                 {/* BOTONES EXISTENTES */}
                 <button
                   onClick={() => {
@@ -1424,7 +1917,6 @@ ARL: ${String(tec.arl || "")}
                   <Settings size={20} />
                   Configuración Zoho
                 </button>
-
                 <button
                   onClick={() => {
                     setMostrarHistorial(true);
@@ -1434,7 +1926,6 @@ ARL: ${String(tec.arl || "")}
                 >
                   📜 Historial
                 </button>
-
                 <button
                   onClick={() => {
                     setMostrarAutocheck(true);
@@ -1444,7 +1935,6 @@ ARL: ${String(tec.arl || "")}
                 >
                   ✅ Autocheck
                 </button>
-
                 <button
                   onClick={() => {
                     setMostrarParafiscalesMensuales(true);
@@ -1454,7 +1944,6 @@ ARL: ${String(tec.arl || "")}
                 >
                   📋 Parafiscales
                 </button>
-
                 <button
                   onClick={() => {
                     setMostrarGestionContactos(true);
@@ -1464,7 +1953,6 @@ ARL: ${String(tec.arl || "")}
                 >
                   📧 Contactos
                 </button>
-
                 <button
                   onClick={() => {
                     setMostrarZonificador(true);
@@ -1475,7 +1963,6 @@ ARL: ${String(tec.arl || "")}
                   <Map size={20} />
                   Zonificador
                 </button>
-
                 <button
                   onClick={() => {
                     setMostrarGuiaEscalamiento(true);
@@ -1486,9 +1973,21 @@ ARL: ${String(tec.arl || "")}
                   <BookOpen size={20} />
                   Guía Escalamiento
                 </button>
-
+                {/* 🆕 DETENER POPUP */}
+                <button
+                  onClick={detenerPopupPersistente}
+                  className="w-full text-left px-4 py-2 hover:bg-red-50 flex items-center gap-3 text-red-600"
+                >
+                  <span className="text-lg">🛑</span>
+                  <span>Detener Popup Persistente</span>
+                </button>
+                ``` --- ## ✅ VERIFICACIÓN FINAL **Después de aplicar todos los
+                cambios:** ``` □ Función abrirPopupFlotante() agregada □ Función
+                detenerPopupPersistente() agregada □ useEffect de mensajes
+                agregado □ Botón en header desktop agregado □ Botón en menú
+                móvil agregado □ Opción detener en menú agregado □ Guardar
+                archivo (Ctrl+S) □ Recargar página (F5)
                 <div className="h-px bg-white/20 my-2"></div>
-
                 <button
                   onClick={() => {
                     borrarTodasLasOTs();
