@@ -1,27 +1,25 @@
-import React from 'react';
+import React from "react";
 
 const VistaPrevia = ({ asunto, cuerpo }) => {
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <h2 className="text-xl font-bold text-gray-800 mb-4">
-        📧 Vista Previa del Correo
-      </h2>
-
-      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-500 mb-1">
-            ASUNTO:
-          </p>
-          <p className="text-sm font-medium text-gray-800">
-            {asunto}
-          </p>
+    <div className="space-y-4">
+      {/* Asunto */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          📧 Asunto:
+        </label>
+        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+          <p className="text-sm font-medium text-gray-800">{asunto}</p>
         </div>
+      </div>
 
-        <div className="border-t pt-4">
-          <p className="text-xs font-semibold text-gray-500 mb-2">
-            CUERPO:
-          </p>
-          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono bg-white p-4 rounded border border-gray-200 max-h-96 overflow-y-auto">
+      {/* Cuerpo */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          📄 Cuerpo del correo:
+        </label>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 max-h-96 overflow-y-auto">
+          <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans">
             {cuerpo}
           </pre>
         </div>

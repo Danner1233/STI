@@ -247,8 +247,6 @@ const AgendamientoOT = () => {
     }
   }, [productividad]);
 
-  
-
   // 🆕 ESCUCHAR MENSAJES DEL POPUP
 
   // ========== HANDLERS ==========
@@ -471,35 +469,39 @@ const AgendamientoOT = () => {
       fechaFormateada = `${dias[fecha.getDay()]} ${fecha.getDate()} de ${meses[fecha.getMonth()]} de ${fecha.getFullYear()}`;
     }
 
-    return `Buen dia
+    return `
+    ===================📧 CORREO====================
+
+
+Buen dia
 
 Señores
 
 ${formData.cliente.toUpperCase()}
 
-Queremos confirmarle la actividad de ${formData.tipoServicio.toUpperCase()} para la sede relacionada en el cuadro.
+Queremos confirmarle la actividad de ${formData.tipoServicio.toUpperCase()} para la sede relacionada en el cuadro. Le solicitamos permisos de ingreso tanto administrativos como tecnicos para el ingreso a la sede en mencion.
+
+Se requiere de un acompañamiento para realizar pruebas pertinentes.
 
 Duracion de la actividad: ${formData.duracion}
 
-=======================================================================
-OT: ${formData.numeroOT}
-FECHA: ${fechaFormateada}
-HORA: ${formData.hora}
-CIUDAD: ${formData.ciudad}
-DIRECCION: ${formData.direccion}
-=======================================================================
+┌─────────────────────────────────────────────────────────────────────┐
+│                     INFORMACIÓN DE LA OT                            │
+├──────────────┬──────────────┬────────┬─────────────┬────────────────┤
+│     OT       │    FECHA     │  HORA  │   CIUDAD    │   DIRECCIÓN    │
+├──────────────┼──────────────┼────────┼─────────────┼────────────────┤
+│ ${(formData.numeroOT || "").padEnd(12)} │ ${(fechaFormateada || "").padEnd(12)} │ ${(formData.hora || "").padEnd(6)} │ ${(formData.ciudad || "").padEnd(11)} │ ${(formData.direccion || "").padEnd(14)} │
+└──────────────┴──────────────┴────────┴─────────────┴────────────────┘
 
-PARAFISCALES DE LOS TECNICOS:
-${parafiscalesMensuales.tecnicos
-  .map(
-    (tec) =>
-      `${String(tec.nombre || "")}
-CC: ${String(tec.cedula || "")}
-EPS: ${String(tec.eps || "")}
-ARL: ${String(tec.arl || "")}
------------------------------------------------------------------------`,
-  )
-  .join("\n")}`;
+Consideramos oportuno recordarle que para que esta obra pueda completarse es necesario solicitar acompañamiento por parte del personal de mantenimiento de las instalaciones. De la misma forma, quisieramos pec celular de la persona de contacto en sitio. Esto nos sera muy util para estar en contacto con el.
+
+Cordialmente,
+
+Analista de Agendamientos Proyectos
+Danner Arias Munive
+CLARO Colombia
+
+Conmutador: Call: 4896060, Medellin: 6051111, B/quilla: 3852323`;
   };
 
   const generarCuerpoHTML = () => {
